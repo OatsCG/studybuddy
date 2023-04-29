@@ -1,9 +1,9 @@
 import sqlite3
 from typing import Any
 
-class AssignmentsDatabase:
+class tasksDatabase:
     '''
-    Represents an Assignments database parser and writer.
+    Represents an tasks database parser and writer.
 
     db_name:
         The location of this database
@@ -22,7 +22,7 @@ class AssignmentsDatabase:
     
     def _SETUP_completely_erase_database(self) -> None:
         '''
-        CAREFUL! Completely erases all users and records; creates new file at self.db_name
+        CAREFUL! Completely erases all records; creates new file at self.db_name
         '''
         open(self.db_name, 'w').close()
     
@@ -42,9 +42,9 @@ class AssignmentsDatabase:
         ''')
         self._db_connection.commit()
     
-    def add_new_user(self, discordID: str, timezone: str) -> None:
+    def add_new_user(self, discordID: int, timezone: str) -> None:
         '''
-        Creates new user and new assignments table
+        Creates new user and new tasks table
         '''
         self._db_cursor.execute(f'''
             INSERT INTO Users(discordID, timezone)
@@ -54,23 +54,22 @@ class AssignmentsDatabase:
         
         self._db_cursor.execute(f'''
             CREATE TABLE IF NOT EXISTS {self._format_discordID(discordID)}(
-                assignmentIndex INT,
                 name TEXT,
                 startdate INT,
-                durationSeconds INT
+                durationMinutes INT
             )
         ''')
         self._db_connection.commit()
     
-    def add_new_assignment(self, discordID: int, name: str, startdate: int, durationSeconds: int) -> None:
+    def add_new_task(self, discordID: int, name: str, startdate: int, durationMinutes: int) -> None:
         '''
-        Creates a new assignment for the user at discordID
+        Creates a new task for the user at discordID
         '''
         self._db_cursor.execute(f'''
-            INSERT INTO {self._format_discordID(discordID)}(index, name, startdate, durationSeconds)
+            INSERT INTO {self._format_discordID(discordID)}(name, startdate, durationMinutes)
             VALUES
-            (?, ?, ?, ?)
-        ''', (name, startdate, durationSeconds))
+            (?, ?, ?)
+        ''', (name, startdate, durationMinutes))
         self._db_connection.commit()
 
     def _format_discordID(self, discordID: int) -> str:
@@ -79,21 +78,27 @@ class AssignmentsDatabase:
         '''
         return ('a' + str(discordID))
     
+    def _unformat_discordID(self, formatted_discordID: str) -> int:
+        '''
+        Removes the 'a' from the formatted discordID for frontend
+        '''
+        return int(formatted_discordID[1:])
+    
     def does_user_exist() -> bool:
         '''
         Returns if a user exists
         '''
         raise NotImplementedError
     
-    def does_assignment_exist(self, assignmentIndex: int) -> bool:
+    def does_task_exist(self, discordID: int, taskIndex: int) -> bool:
         '''
-        Returns the assignment at id
+        Returns the task at taskIndex for discordID
         '''
         raise NotImplementedError
     
-    def get_number_assignments(self, discordID: int) -> int:
+    def get_number_tasks(self, discordID: int) -> int:
         '''
-        returns the number of assignments for a user
+        returns the number of tasks for a user
         '''
         self._db_cursor.execute(f"SELECT COUNT(*) FROM {self._format_discordID(discordID)}")
         result = self._db_cursor.fetchone()
@@ -107,23 +112,32 @@ class AssignmentsDatabase:
         '''
         raise NotImplementedError
 
-    def get_user_assignments(self, discordID: int) -> list[dict[str, Any]]:
+    def get_user_tasks(self, discordID: int) -> list[dict[str, Any]]:
         '''
-        Returns an unsorted list of the user's assignments
+        Returns a  list of the user's tasks sorted by startdate
 
-        [{"index": int, "name": str, "startdate": int, "durationSeconds": int}, ...]
+        [{"taskIndex": int, "name": str, "startdate": int, "durationMinutes": int}, ...]
         '''
         raise NotImplementedError
     
     def edit_user_timezone():
         raise NotImplementedError
 
-    def remove_assignment():
+    def remove_tasks(self, discordID: int, taskIndex: int) -> None:
+        '''
+        Removes the task from discordID's tasks 
+        '''
         raise NotImplementedError
+    
+
 
 
 
 if __name__ == "__main__":
     # DATABASE TESTING
-    database = AssignmentsDatabase("/Users/Charlie/Desktop/calbot/assignments.db")
-    database.add_new_user("123", "EST")
+    database = tasksDatabase("/Users/Charlie/Desktop/calbot/tasks.db")
+    database.add_new_user(123, "EST")
+    database.add_new_task(123, "CSC148 task 1", 123456, 0)
+    database.add_new_user(5593, "GST")
+    database.add_new_task(123, "CSC148 task 2", 888886, 0)
+    database.add_new_task(5593, "MAT102 Exam", 111111, 120)
