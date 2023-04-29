@@ -1,5 +1,5 @@
 import sqlite3
-from typing import Any
+from typing import Any, Union
 
 class tasksDatabase:
     '''
@@ -20,18 +20,30 @@ class tasksDatabase:
         self._SETUP_add_table_Users()
 
     
-    def _SETUP_completely_erase_database(self) -> None:
+    def _SETUP_completely_erase_database(self) -> bool:
         '''
-        CAREFUL! Completely erases all records; creates new file at self.db_name
+        CAREFUL! Completely erases all records; creates new file at self.db_name.
+
+        Returns success.
         '''
-        open(self.db_name, 'w').close()
+        try:
+            open(self.db_name, 'w').close()
+            return True
+        except:
+            return False
     
-    def _SETUP_start_connection(self) -> None:
+    def _SETUP_start_connection(self) -> bool:
         '''
-        Starts sqlite3 connection to database
+        Starts sqlite3 connection to database.
+
+        Returns success.
         '''
-        self._db_connection = sqlite3.connect(self.db_name)
-        self._db_cursor = self._db_connection.cursor()
+        try:
+            self._db_connection = sqlite3.connect(self.db_name)
+            self._db_cursor = self._db_connection.cursor()
+            return True
+        except:
+            return False
 
     def _SETUP_add_table_Users(self) -> None:
         self._db_cursor.execute('''
@@ -42,102 +54,150 @@ class tasksDatabase:
         ''')
         self._db_connection.commit()
     
-    def add_new_user(self, discordID: int, timezone: str) -> None:
+    def add_new_user(self, discordID: int, timezone: str) -> bool:
         '''
-        Creates new user and new tasks table
+        Creates new user and new tasks table.
+
+        Returns success.
         '''
-        self._db_cursor.execute(f'''
-            INSERT INTO Users(discordID, timezone)
-            VALUES
-            (?, ?)
-        ''', (self._format_discordID(discordID), timezone))
-        
-        self._db_cursor.execute(f'''
-            CREATE TABLE IF NOT EXISTS {self._format_discordID(discordID)}(
-                name TEXT,
-                startdate INT,
-                durationMinutes INT
-            )
-        ''')
-        self._db_connection.commit()
+        try:
+            self._db_cursor.execute(f'''
+                INSERT INTO Users(discordID, timezone)
+                VALUES
+                (?, ?)
+            ''', (self._format_discordID(discordID), timezone))
+            
+            self._db_cursor.execute(f'''
+                CREATE TABLE IF NOT EXISTS {self._format_discordID(discordID)}(
+                    name TEXT,
+                    startdate INT,
+                    enddate INT
+                )
+            ''')
+            self._db_connection.commit()
+            return True
+        except:
+            return False
     
-    def add_new_task(self, discordID: int, name: str, startdate: int, durationMinutes: int) -> None:
+    def add_new_task(self, discordID: int, name: str, startdate: int, enddate: int) -> bool:
         '''
-        Creates a new task for the user at discordID
+        Creates a new task for the user at discordID.
+
+        Returns success.
         '''
-        self._db_cursor.execute(f'''
-            INSERT INTO {self._format_discordID(discordID)}(name, startdate, durationMinutes)
-            VALUES
-            (?, ?, ?)
-        ''', (name, startdate, durationMinutes))
-        self._db_connection.commit()
+        try:
+            self._db_cursor.execute(f'''
+                INSERT INTO {self._format_discordID(discordID)}(name, startdate, enddate)
+                VALUES
+                (?, ?, ?)
+            ''', (name, startdate, enddate))
+            self._db_connection.commit()
+            return True
+        except:
+            return False
 
     def _format_discordID(self, discordID: int) -> str:
         '''
-        Prepends 'a' to the discordID for compatibility with sqlite3
+        Prepends 'a' to the discordID for compatibility with sqlite3.
         '''
         return ('a' + str(discordID))
     
     def _unformat_discordID(self, formatted_discordID: str) -> int:
         '''
-        Removes the 'a' from the formatted discordID for frontend
+        Removes the 'a' from the formatted discordID for frontend.
         '''
         return int(formatted_discordID[1:])
-    
-    def does_user_exist() -> bool:
-        '''
-        Returns if a user exists
-        '''
-        raise NotImplementedError
-    
-    def does_task_exist(self, discordID: int, taskIndex: int) -> bool:
-        '''
-        Returns the task at taskIndex for discordID
-        '''
-        raise NotImplementedError
+
     
     def get_number_tasks(self, discordID: int) -> int:
         '''
-        returns the number of tasks for a user
+        returns the number of tasks for a user.
         '''
-        self._db_cursor.execute(f"SELECT COUNT(*) FROM {self._format_discordID(discordID)}")
-        result = self._db_cursor.fetchone()
-        return(result)
+        try:
+            self._db_cursor.execute(f"SELECT COUNT(*) FROM {self._format_discordID(discordID)}")
+            result = self._db_cursor.fetchone()[0]
+            return result
+        except:
+            return 0
     
-    def get_user(self, discordID: int) -> dict[str: Any]:
+    def get_user(self, discordID: int) -> Union[dict[str, Any], None]:
         '''
-        Returns the user's data
+        Returns the user's data, or None if user doesn't exist.
 
         {"discordID": int, "timezone": str}
         '''
-        raise NotImplementedError
+        try:
+            self._db_cursor.execute(f"SELECT * FROM Users WHERE discordID='{self._format_discordID(discordID)}'")
+            result = self._db_cursor.fetchone()
+            if result is None:
+                return None
+            return {"discordID": self._unformat_discordID(result[0]), "timezone": result[1]}
+        except:
+            return None
 
     def get_user_tasks(self, discordID: int) -> list[dict[str, Any]]:
         '''
-        Returns a  list of the user's tasks sorted by startdate
+        Returns a  list of the user's tasks sorted by startdate.
 
-        [{"taskIndex": int, "name": str, "startdate": int, "durationMinutes": int}, ...]
+        [{"name": str, "startdate": int, "enddate": int}, ...]
         '''
-        raise NotImplementedError
+        try:
+            self._db_cursor.execute(f"SELECT * FROM {self._format_discordID(discordID)} ORDER BY startdate ASC")
+            result = self._db_cursor.fetchall()
+            r = []
+            for task in result:
+                r.append({"name": task[0], "startdate": task[1], "enddate": task[2]})
+            return r
+        except:
+            return []
     
-    def edit_user_timezone():
-        raise NotImplementedError
-
-    def remove_tasks(self, discordID: int, taskIndex: int) -> None:
+    def edit_user_timezone(self, discordID: int, timezone: str) -> bool:
         '''
-        Removes the task from discordID's tasks 
+        Updates the user's timezone.
+
+        Returns success.
         '''
-        raise NotImplementedError
-    
+        try:
+            self._db_cursor.execute(f"UPDATE Users SET timezone='{timezone}' WHERE discordID='{self._format_discordID(discordID)}'")
+            self._db_connection.commit()
+            return True
+        except:
+            return False
 
+    def remove_task(self, discordID: int, taskIndex: int) -> bool:
+        '''
+        Removes the task from discordID's tasks.
 
+        Returns success.
+        '''
+        try:
+            self._db_cursor.execute(f'''DELETE FROM {self._format_discordID(discordID)} WHERE rowid=(SELECT rowid FROM {self._format_discordID(discordID)} ORDER BY startdate ASC LIMIT 1 OFFSET {taskIndex})''')
+            self._db_connection.commit()
+            return True
+        except:
+            return False
 
 
 if __name__ == "__main__":
     # DATABASE TESTING
     database = tasksDatabase("/Users/Charlie/Desktop/calbot/tasks.db")
-    database.add_new_user(123, "EST")
-    database.add_new_task(123, "CSC148 task 1", 123456, 0)
-    database.add_new_user(5593, "GST")
-    database.add_new_task(123, "CSC148 task 2", 888886, 0)
-    database.add_new_task(5593, "MAT102 Exam", 111111, 120)
+    print(database.add_new_user(123, "EST"))
+    print(database.add_new_task(123, "CSC148 task 1", 123456, 123456))
+    print(database.add_new_user(5593, "GST"))
+    print(database.add_new_task(123, "CSC148 task 3", 999999, 999999))
+    print(database.add_new_task(5593, "MAT102 Exam", 100000, 100120))
+    print(database.add_new_task(123, "CSC148 task 2", 888888, 888888))
+    
+    print()
+    print(database.get_user(123), database.get_number_tasks(123))
+    print(database.get_user(5593), database.get_number_tasks(5593))
+    print(database.get_user_tasks(123))
+    print()
+
+    print(database.remove_task(123, 1))
+    print(database.edit_user_timezone(5593, "UTC"))
+
+    print()
+    print(database.get_user(123), database.get_number_tasks(123))
+    print(database.get_user(5593), database.get_number_tasks(5593))
+    print(database.get_user_tasks(123))
