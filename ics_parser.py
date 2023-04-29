@@ -2,8 +2,7 @@ import time
 import os
 import datetime
 from zoneinfo import ZoneInfo
-import pandas as pd
-import recurring_ical_events
+from dateutil.rrule import rrulestr
 # We need Assignment name, start time, end time, and "completed".
 # We can assume that assignments in the calendar past the current time
 # have already been completed.
@@ -90,32 +89,25 @@ def parse_ics(path: str) -> dict | int:
 
                     # If the event repeats (we need to add the same event multiple times)
                     if "Repeating" in curr_event:
-                        
-                        repeat_event = curr_event["Repeating"]
-
-                        end = None
-                        period = None
-                        # if we have a frequency count
-                        if "COUNT" in repeat_event:
-                            count_index = repeat_event.index("COUNT=") + len("COUNT=")
-                            count = repeat_event[count_index:repeat_event.find(';', count_index)]
-                            period = int(count)
-
-                        elif "UNTIL" in repeat_event:
-                            until_index = repeat_event.index("UNTIL=") + len("UNTIL=")
-                            until = repeat_event[until_index:repeat_event.find(';', until_index)]
-                            end = datetime.datetime.fromtimestamp(time_to_epoch(until))
+                        # Get the start date
+                        start_time = datetime.datetime.fromtimestamp(curr_event["Start time"])
+                        if "End time" in curr_event:
+                            end_time = datetime.datetime.fromtimestamp(curr_event["End time"])
                         else:
-                            period = 1000
-                            # we can set count limit to 1000.
-
-                        # next, we need to define the interval.
-                        if "INTERVAL" in repeat_event:
-                            interval_index = repeat_event.index("INTERVAL=") + len("INTERVAL=")
-                            interval = int(repeat_event[interval_index:repeat_event.find(';', interval_index)])
-                        else:
-                            interval = 1
+                            end_time = start_time
+                        duration = end_time - start_time
+                        # i need to trim the curr_event["Repeating"]
+                        rules_index = curr_event["Repeating"].index("RRULE:") + len("RRULE:")
+                        rule = curr_event["Repeating"][rules_index:]
+                        rule = rrulestr(rule, dtstart=start_time.astimezone(datetime.timezone.utc))
+                        for time in list(rule):  # all the times of the event
+                            new_event = curr_event.copy()
+                            new_event.pop("Repeating")
+                            new_event["Start time"] = datetime.datetime.timestamp(time)
+                            new_event["End time"] = datetime.datetime.timestamp(time + duration)
+                            events.append(new_event)
                     
+                    curr_event.pop("Repeating")
                     events.append(curr_event)
                 # Start of the event
                 elif line == "BEGIN:VEVENT":
@@ -175,8 +167,5 @@ def parse_ics(path: str) -> dict | int:
 
 
 if __name__ == "__main__":
-    # db = parse_ics("test2.ics")
-    # print(db)
-
-    t = time_to_epoch("DTSTART:19700308T020000")
-    print(t)
+    db = parse_ics("test3.ics")
+    print(db)
