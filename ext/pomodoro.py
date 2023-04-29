@@ -95,9 +95,9 @@ class pomodoro(commands.Cog):
         #and value as a tuple to represent the role/group to be affected and the operation being called
         #(role, operation), might be a bad design choice idk
         currTime = await datetime.utcnow()
-        addTwoFive = datetime.timedelta(minutes=25)
-        newTime = currTime + addTwoFive
-        self.timeOp.put((newTime.hour, newTime.minute), (newRole, "breakstart"))
+        addTime = datetime.timedelta(minutes=25)
+        newTime = currTime + addTime
+        await self.timeOp.put((newTime.hour, newTime.minute), (newRole, "breakstart"))
 
     @commands.command(name="endSession", description="ends an existing study session")
     async def forceEndSession(self, ctx, role: discord.role):
@@ -116,6 +116,13 @@ class pomodoro(commands.Cog):
         #delete role
         await role.delete()
         self.groupNum-=1
+        if self.groupNum == 0:
+            self.peekCheckpoints.cancel()
+
+
+    async def checkReactions(self, mess: discord.Message):
+        if len(mess.reactions)>0:
+            return True
 
     #TODO: how does this loop get started? (upon first group being made)
     @tasks.loop(minutes=1.0) #check if we reached any of the upcoming checkpoints every minute
@@ -127,12 +134,37 @@ class pomodoro(commands.Cog):
         #TODO: compare currTime.hour and currTime.minute to the next checkpoint
         if self.timeOp.has_key((currTime.hour, currTime.minute)):
             operation = self.timeOp.get((currTime.hour, currTime.minute))
-            if operation[1] == "breakstart": #TODO: set new breakover event to happen in 5 minutes
-                
+            if operation[1] == None:
+                pass #do nothing
+            elif operation[1] == "breakstart": #TODO: set new breakover event to happen in 5 minutes
+                addTime = await datetime.timedelta(minutes=5)
+                newTime = currTime + addTime   
+                await self.timeOp.put((newTime.hour, newTime.minute), (operation[0], "breakover"))
                 pass
-            else: #operation == "breakover", TODO: get user to check in and make new breakstart?
-                
+            elif operation[1] == "breakover": #operation == "breakover", TODO: get user to check in and make new breakstart?
+                mess = None
+                addTime = await datetime.timedelta(minutes=5)
+                newTime = currTime + addTime   
+                await self.timeOp.put((newTime.hour, newTime.minute), (operation[0], "forcequit"))
+                for channel in operation[0].guild.text_channels:
+                    if channel.name == "{channelName} text".format(channelName=operation[0].name):
+                        mess = await channel.send("Please react to this message to indicate you are here")
+                if await self.checkReactions(mess): #TODO: DEFINITELY INCORRECT, NEED TO CONSTANTLY CHECK THIS IN A LOOP (consider task.loop again), reaction detected
+                    #TODO: if user replies and checks in, set forcequit checkpoint to None
+                    await self.timeOp.put((newTime.hour, newTime.minute), (operation[0], None))
                 pass
+            else: #operation[1] == "forcequit", TODO: shut down the study session due to prolonged break
+                for channel in operation[0].guild.text_channels: #delete text channel
+                    if channel.name == "{channelName} text".format(channelName=operation[0].name):
+                        channel.delete()
+                for channel in operation[0].guild.voice_channels: #delete vc
+                    if channel.name == "{channelName} voice".format(channelName=operation[0].name):
+                        channel.delete()
+                operation[0].delete() #delete the role
+                #delete the force quit dict entry
+                addTime = await datetime.timedelta(minutes=5)
+                newTime = currTime + addTime
+                self.timeOp.pop((newTime.hour, newTime.minute))
 
 async def setup(bot):
     await bot.add_cog(pomodoro(bot))
