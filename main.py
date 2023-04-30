@@ -17,6 +17,8 @@ class MyBot(commands.Bot):
             case_insensitive=True
         )
 
+        self.remove_command("help")
+
         self.initial_extensions = [
             'text-interface.text-input-cog',
             # 'ext.pomodoro',

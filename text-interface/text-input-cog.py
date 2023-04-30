@@ -81,8 +81,6 @@ class TextInputter(commands.Cog):
         num_pages = math.ceil(len(events) / page_size)  # useful for determining bounds of page_number
         page_number = 1  # counting starts at 1, not 0.
 
-        print(events[(page_number-1)*page_size:min(page_number*page_size, len(events))])  # prints out page_size items per page
-
         # figuring out time stuff
 
         # first i need to get the user's timezone
@@ -108,7 +106,8 @@ class TextInputter(commands.Cog):
                 field_value = f"Due date: {start_date.strftime('%b %e %Y @ %k:%M')}"
             embed.add_field(
                 name=f"{(page_number - 1) * 10 + i + 1}) {name}",
-                value=field_value
+                value=field_value,
+                inline=False
             )
 
         # now i need to add the buttons
@@ -136,7 +135,8 @@ class TextInputter(commands.Cog):
                         field_value = f"Due date: {start_date.strftime('%b %e %Y @ %k:%M')}"
                     new_embed.add_field(
                         name=f"{(old_page_number - 1) * 10 + i + 1}) {name}",
-                        value=field_value
+                        value=field_value,
+                        inline=False
                     )
                 await interaction.response.edit_message(view=self, embed=new_embed)
 
@@ -162,7 +162,8 @@ class TextInputter(commands.Cog):
                         field_value = f"Due date: {start_date.strftime('%b %e %Y @ %k:%M')}"
                     new_embed.add_field(
                         name=f"{(old_page_number - 1) * 10 + i + 1}) {name}",
-                        value=field_value
+                        value=field_value,
+                        inline=False
                     )
 
                 embed = new_embed
@@ -312,15 +313,13 @@ class TextInputter(commands.Cog):
             await ctx.send("Calendar information has been parsed successfully.")
             return
         
-    @tasks.loop(minutes=1)
+    @tasks.loop(minutes=30)
     async def ping_users(self):
         users = self._database._get_all_users()
-        print(users)
         for user in users:
             time_zone = user["timezone"]
             time_zone = pytz.timezone(time_zone)
             assignments = self._database.get_user_tasks(user["discordID"])
-            print(assignments)
             if len(assignments) >= 1:
                 assignment = assignments[0]
                 # need to convert to user's timezone
@@ -328,6 +327,7 @@ class TextInputter(commands.Cog):
                 
                 if start_date < datetime.now(tz=time_zone):
                     self._database.remove_task(user["discordID"], 0)
+                    continue
                 if start_date < (datetime.now(tz=time_zone) + timedelta(hours=1, minutes=30)):
                     username = self.bot.get_user(int(user["discordID"]))
                     await username.send(f"Your assignment {assignment['name']} is due in {(start_date - datetime.now(tz=time_zone)).seconds // 60} minutes!")
@@ -354,5 +354,62 @@ class TextInputter(commands.Cog):
                     username = self.bot.get_user(int(user["discordID"]))
                     await username.send(f"Your assignment {assignment['name']} is due in {(start_date - datetime.now(tz=time_zone)).seconds // 60} minutes!")
             
+    @commands.command(name="help")
+    async def help(self, ctx):
+        embed = discord.Embed(color=discord.Colour.brand_red())
+        embed.set_author(name="Commands for StudyBuddy")
+        embed.add_field(
+            name="`s.help`",
+            value="Prints this message.",
+            inline=False
+        )
+        embed.add_field(
+            name="`s.add <name> <start-time> <end-time>`",
+            value="Add an assignment event to your calendar. For more information about the parameters, type `s.add`.",
+            inline=False
+        )
+        embed.add_field(
+            name="`s.view`",
+            value="View your calendar, one page at a time. Each page holds 10 events.",
+            inline=False
+        )
+        embed.add_field(
+            name="`s.edit <index> <start-time> <end-time>`",
+            value="Edit an assignment's start and end time by its assignment index (which can be found in `s.view`). For more information, type `s.view`.",
+            inline=False
+        )
+        embed.add_field(
+            name="`s.complete <index>`",
+            value="'Completes' the assignment given by its assignment index. Completing an assignment removes it from the database.",
+            inline=False
+        )
+        embed.add_field(
+            name="`s.timezone <timezone>`",
+            value="Input your timezone to be used for the calendar. **NONE OF THE COMMANDS WORK WITHOUT IT!!** Timezone must be a tz-format timezone, a reference for which is available on Wikipedia.",
+            inline=False
+        )
+        embed.add_field(
+            name="`s.file`",
+            value="The bot opens a DM with you where you can submit your Google Calendar file, to be imported to your local Discord calendar.",
+            inline=False
+        )
+        embed.add_field(
+            name="`s.startSession`",
+            value="Start a session. You will be given a role, which identifies your pomodoro session.",
+            inline=False
+        )
+        embed.add_field(
+            name="`s.joinSession <role>`",
+            value="Join a pre-existing study session specified by <role>.",
+            inline=False
+        )
+        embed.add_field(
+            name="`s.endSession <role>`",
+            value="End the session specified by <role>.",
+            inline=False
+        )
+        await ctx.send(embed=embed)
+
+
 def setup(bot):
     bot.add_cog(TextInputter(bot))

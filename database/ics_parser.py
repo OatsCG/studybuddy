@@ -53,7 +53,6 @@ def time_to_epoch(user_time: str, time_zone: str=None) -> int:
         user_time = user_time[colon_index:]
         format = "%Y%m%dT%H%M%S"
         user_time = time_zone.localize(datetime.datetime.strptime(user_time, format))
-        # print(user_time)
         return user_time
     
     # otherwise we hope that we got the timezone earlier in the .ics format
@@ -71,7 +70,6 @@ def time_to_epoch(user_time: str, time_zone: str=None) -> int:
     return datetime.datetime.strptime(user_time, format).replace(tzinfo=pytz.utc)
 
 def get_dst(dt, timezone):
-    # print(timezone)
     dt = dt.replace(tzinfo=None)
     timezone = pytz.timezone(timezone)
     d_aware = timezone.localize(dt)
@@ -138,14 +136,12 @@ def parse_ics(buffer) -> list[dict] | str:
                         utc_date = date_aware.astimezone(pytz.utc)
                         new_until = f"{utc_date.year}{str(utc_date.month).zfill(2)}{str(utc_date.day).zfill(2)}T{str(utc_date.hour).zfill(2)}{str(utc_date.minute).zfill(2)}{str(utc_date.second).zfill(2)}Z"
                         rule = rule[:until_index] + new_until + rule[semicolon_index:]
-                        print(rule)
                     
                 if "UNTIL" not in rule and "COUNT" not in rule:
                     # count goes directly after FREQ, which is guaranteed to be in rule.
                     freq_index = rule.index("FREQ=")
                     semicolon_index = rule.index(";", freq_index) + 1
                     rule = rule[:semicolon_index] + "COUNT=1000;" + rule[semicolon_index:]
-                    print(rule)
                     # rule = "COUNT=1000;" + rule  # setting COUNT=1000 to the first thing
 
                 rule = rrulestr(rule, dtstart=start_time.astimezone(pytz.utc))
@@ -164,7 +160,6 @@ def parse_ics(buffer) -> list[dict] | str:
                 curr_event["End time"] = datetime.datetime.timestamp(curr_event["End time"])
             else:
                 curr_event["End time"] = curr_event["Start time"]
-            print(curr_event)
             events.append(curr_event)
         # Start of the event
         elif line == "BEGIN:VEVENT":
@@ -220,8 +215,3 @@ def parse_ics(buffer) -> list[dict] | str:
     # In case anything goes wrong.
     # except Exception as e:
     #     return e
-
-
-if __name__ == "__main__":
-    db = parse_ics("test3.ics")
-    print(db)
