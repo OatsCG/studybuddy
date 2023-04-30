@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 from database.database_curator import tasksDatabase
+from datetime import datetime
 import asyncio
 import os
 from database.ics_parser import parse_ics
@@ -26,7 +27,7 @@ class MyView(discord.ui.View):
         await interaction.response.send_modal(MyModal(title="Modal via Button"))
 
 
-class Basics(commands.Cog):
+class TextInputter(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self._database = tasksDatabase("tasks.db")
@@ -77,7 +78,6 @@ class Basics(commands.Cog):
             await ctx.reply(embed=embed)
         else:
             await ctx.reply(f"**{task_title}** added to schedule from **{task_startdate.strftime('%a %d %b %Y %I:%M%p')}** to {task_enddate.strftime('%a %d %b %Y %I:%M%p')}! use **s.view** to view your schedule.")
-    
 
     @commands.command(name="view", aliases=["calendar", "schedule"])
     async def view(self, ctx):
@@ -95,17 +95,21 @@ class Basics(commands.Cog):
                     msg.append(f"Name: {events[j]['name']}, Start: {events[j]['startdate']}, End: {events[j]['enddate']}")
                 msg = "\n".join(msg)
                 await ctx.send(msg)
-                
     
-    @commands.command(name="upload", aliases=["ics"])
-    async def upload(self, ctx, channel: discord.TextChannel, text: str):
-        #dm user to prompt for file
-        await channel.send(text)
+        await ctx.reply(embed=embed)
     
     @commands.command(name="complete", aliases=["remove", "delete"])
     async def complete(self, ctx, channel: discord.TextChannel, text: str):
         #remove task from database
         await channel.send(text)
+
+    @commands.command(name="timezone", aliases=["tz"])
+    async def timezone(self, ctx, *args):
+        tz = " ".join(args)
+        self._database.add_new_user(ctx.author.id, tz)
+        embed = discord.Embed(color=discord.Colour.brand_red(), title=f"**Timezone Updated to '{tz}'**")
+        embed.add_field(name="You can now add to your schedule with **s.add**")
+        await ctx.reply(embed=embed)
 
     @commands.command(name="file", aliases=["fromfile"])
     async def file(self, ctx):
@@ -140,9 +144,5 @@ class Basics(commands.Cog):
             await ctx.send("Calendar information has been parsed successfully.")
             return
 
-
-        
-
-
 def setup(bot):
-    bot.add_cog(Basics(bot))
+    bot.add_cog(TextInputter(bot))
