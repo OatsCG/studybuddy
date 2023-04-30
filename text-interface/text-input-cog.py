@@ -69,6 +69,13 @@ class TextInputter(commands.Cog):
         #list out first 10 tasks
         # just gonna print out the first 10 tasks 
         # Reminder: format is "name", "startdate", "enddate"
+
+        if self._database.get_user(ctx.author.id) is None:
+            embed = discord.Embed(color=discord.Colour.brand_red())
+            embed.add_field(name="You have not registered a timezone, use **s.timezone**", value="")
+            await ctx.reply(embed=embed)
+            return
+
         events = self._database.get_user_tasks(ctx.author.id)
         page_size = 10  # define the page size
         num_pages = math.ceil(len(events) / page_size)  # useful for determining bounds of page_number
