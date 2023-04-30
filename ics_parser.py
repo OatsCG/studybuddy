@@ -3,6 +3,8 @@ import os
 import datetime
 from zoneinfo import ZoneInfo
 from dateutil.rrule import rrulestr
+from dateutil import tz
+import pytz
 # We need Assignment name, start time, end time, and "completed".
 # We can assume that assignments in the calendar past the current time
 # have already been completed.
@@ -17,7 +19,7 @@ from dateutil.rrule import rrulestr
 # We need to iterate over each VEVENT
 # and keep track of DTSTART and SUMMARY
 
-def time_to_epoch(user_time: str, tz: str=None) -> int:
+def time_to_epoch(user_time: str, time_zone: str=None) -> int:
     """Converts the time from <user_time> to the respective epoch time.
     <user_time> is formatted based on the .ics specification, meaning it
     either contains just the date, the date + time in UTC, or the date + time
@@ -30,7 +32,7 @@ def time_to_epoch(user_time: str, tz: str=None) -> int:
     if colon_index + 8 >= len(user_time):
         user_time = user_time[colon_index:colon_index+8]
         format = "%Y%m%d"
-        return int(time.mktime(time.strptime(user_time, format)))
+        return datetime.datetime.strptime(user_time, format).replace(tzinfo=datetime.timezone.utc)
     
     # By this point, we know that the time exists.
     # Next, we check if a "Z" is the last character in line.
@@ -39,7 +41,7 @@ def time_to_epoch(user_time: str, tz: str=None) -> int:
     if user_time[-1] == "Z":
         user_time = user_time[colon_index:len(user_time)-1]  # ignoring the Z
         format = "%Y%m%dT%H%M%S"
-        return int(time.mktime(time.strptime(user_time, format)))
+        return datetime.datetime.strptime(user_time, format).replace(tzinfo=datetime.timezone.utc)
 
     # If we got to this point, then this time event is using "floating time".
     # The timezone may or may not be provided in this line, so we must check if it exists.
@@ -47,25 +49,39 @@ def time_to_epoch(user_time: str, tz: str=None) -> int:
         # We need to locate the TZID module
         tzid_index = user_time.find("TZID=") + len("TZID=")
         tzid = user_time[tzid_index:colon_index-1]  # colon index must follow the timezone by .ics standards
-        tz = ZoneInfo(tzid)
+        time_zone = pytz.timezone(tzid)
         user_time = user_time[colon_index:]
         format = "%Y%m%dT%H%M%S"
-        return round(datetime.datetime.strptime(user_time, format).replace(tzinfo=tz).timestamp())
+        user_time = time_zone.localize(datetime.datetime.strptime(user_time, format))
+        # print(user_time)
+        return user_time
     
     # otherwise we hope that we got the timezone earlier in the .ics format
-    if tz:
-        tz = ZoneInfo(tz)
+    if time_zone:
+        time_zone = pytz.timezone(time_zone)
         user_time = user_time[colon_index:]
         format = "%Y%m%dT%H%M%S"
-        return round(datetime.datetime.strptime(user_time, format).replace(tzinfo=tz).timestamp())
+        return time_zone.localize(datetime.datetime.strptime(user_time, format))
 
     # by this point we do not have a timezone.
     # therefore this is a floating point time, and is not bound to a timezone.
     # we should therefore automatically convert it to UTC, as a protocol.
     user_time = user_time[colon_index:]
     format = "%Y%m%dT%H%M%S"
-    return int(time.mktime(time.strptime(user_time, format)))
+    return datetime.datetime.strptime(user_time, format).replace(tzinfo=datetime.timezone.utc)
 
+def get_dst(dt, timezone):
+    # print(timezone)
+    dt = dt.replace(tzinfo=None)
+    timezone = pytz.timezone(timezone)
+    d_aware = timezone.localize(dt)
+    # dt = dt.replace(tzinfo=timezone)
+    if d_aware.dst().seconds == 0:
+        return datetime.timedelta(seconds=0)
+    else:
+        return datetime.timedelta(seconds=3600)
+    # timezone_aware_date = timezone.localize(dt, is_dst=None)
+    # return timezone_aware_date.tzinfo._dst.seconds != 0
 
 def parse_ics(path: str) -> dict | int:
     """Parse the .ics file indicated by <path>.
@@ -90,24 +106,27 @@ def parse_ics(path: str) -> dict | int:
                     # If the event repeats (we need to add the same event multiple times)
                     if "Repeating" in curr_event:
                         # Get the start date
-                        start_time = datetime.datetime.fromtimestamp(curr_event["Start time"])
+                        start_time = curr_event["Start time"]
                         if "End time" in curr_event:
-                            end_time = datetime.datetime.fromtimestamp(curr_event["End time"])
+                            end_time = curr_event["End time"]
                         else:
                             end_time = start_time
                         duration = end_time - start_time
                         # i need to trim the curr_event["Repeating"]
                         rules_index = curr_event["Repeating"].index("RRULE:") + len("RRULE:")
                         rule = curr_event["Repeating"][rules_index:]
-                        rule = rrulestr(rule, dtstart=start_time.astimezone(datetime.timezone.utc))
+                        rule = rrulestr(rule, dtstart=start_time.astimezone(pytz.utc))
                         for time in list(rule):  # all the times of the event
                             new_event = curr_event.copy()
                             new_event.pop("Repeating")
-                            new_event["Start time"] = datetime.datetime.timestamp(time)
-                            new_event["End time"] = datetime.datetime.timestamp(time + duration)
+                            new_event["Start time"] = datetime.datetime.timestamp(time - get_dst(time, start_time.tzinfo.zone))
+                            new_event["End time"] = datetime.datetime.timestamp(time + duration - get_dst(time, start_time.tzinfo.zone))
                             events.append(new_event)
                     
                     curr_event.pop("Repeating")
+                    curr_event["Start time"] = datetime.datetime.timestamp(curr_event["Start time"])
+                    if "End time" in curr_event:
+                        curr_event["End time"] = datetime.datetime.timestamp(curr_event["End time"])
                     events.append(curr_event)
                 # Start of the event
                 elif line == "BEGIN:VEVENT":
