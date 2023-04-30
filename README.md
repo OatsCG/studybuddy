@@ -26,3 +26,4 @@ We learned the ins and outs of the pycord library, as well as an introduction to
 
 ## What's next for StudyBuddy
 
+The next goal for StudyBuddy is to implement voice call features, such as playing music or other ambient noises while you study.
