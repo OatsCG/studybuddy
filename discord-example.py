@@ -29,5 +29,5 @@ class MyBot(commands.Bot):
 
 
 bot = MyBot()
-bot.run("MTEwMTY3NDk5OTkxNzU4NDQxNw.GeY4j1.a9CQ-wStE51cL0-RXgQSCJyL35itEsuyFKmBKs")
+bot.run("MTEwMTY3NDk5OTkxNzU4NDQxNw.GIVXZg.d-uSesymPWSi7j80uo10sewNcsupw-Ukc5rs9s")
 

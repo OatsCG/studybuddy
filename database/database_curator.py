@@ -1,5 +1,6 @@
 import sqlite3
 from typing import Any, Union
+from ics_parser import parse_ics
 
 class tasksDatabase:
     '''
@@ -180,7 +181,7 @@ class tasksDatabase:
 
 if __name__ == "__main__":
     # DATABASE TESTING
-    database = tasksDatabase("/Users/Charlie/Desktop/calbot/tasks.db")
+    database = tasksDatabase("./tasks.db")
     print(database.add_new_user(123, "EST"))
     print(database.add_new_task(123, "CSC148 task 1", 123456, 123456))
     print(database.add_new_user(5593, "GST"))
@@ -200,3 +201,11 @@ if __name__ == "__main__":
     print(database.get_user_tasks(123) == [{'name': 'CSC148 task 1', 'startdate': 123456, 'enddate': 123456}, {'name': 'CSC148 task 3', 'startdate': 999999, 'enddate': 999999}])
     print(database.remove_task(123, 1))
     print(database.get_user_tasks(123) == [{'name': 'CSC148 task 1', 'startdate': 123456, 'enddate': 123456}])
+
+    user = 123
+    calendar_path = "test3.ics"
+    assignment_dict = parse_ics(calendar_path)
+    for assignment in assignment_dict:
+        print(database.add_new_task(user, assignment["Name"], assignment["Start time"], assignment["End time"]))
+
+
