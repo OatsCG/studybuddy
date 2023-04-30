@@ -13,12 +13,12 @@ class pomodoro(commands.Cog):
         self.noiseNames = [] #preload all ambient noise file names
         self.timeOp = {} #dictionary that performs an operation for a given time
     
-    async def play(self, ctx, fname: str):
+    async def play(self, ctx, fname: str): #helper for the bot to open and play a local audio file
         f = open(fname, "rb")
         source = discord.PCMVolumeTransformer(discord.PCMAudio(f)) #TODO: FFmpegPCMAudio needs more research (idk what im doing) (after research, consider just using PCM audio files instead and use discord.PCMAudio?)
         ctx.voice_client.play(source)
 
-    async def join(self, ctx, channel: discord.VoiceChannel):
+    async def join(self, ctx, channel: discord.VoiceChannel): #helper for bot to join vcs
         if ctx.voice_client is not None:
             return await ctx.voice_client.move_to(channel)
         await channel.connect()
@@ -55,10 +55,17 @@ class pomodoro(commands.Cog):
     @commands.command(name="joinSession", description="Joins an existing study session")
     async def joinSession(self, ctx, role:discord.Role):
         """ 
-        Allows member to join the study group indicated by role
+        Allows member to join the existing study group indicated by role
         """
-        await ctx.author.add_roles(role)
-        await ctx.send("Successfully joined the study session!")
+        exists = False
+        for role in ctx.guild.roles:
+            if(role == role):
+                exists = True
+        if exists:
+            await ctx.author.add_roles(role)
+            await ctx.send("Successfully joined the study session!")
+        else:
+            await ctx.send("That role does not exist!")
 
     @commands.command(name="startSession", description="Begins a new study session")
     async def startSession(self, ctx):
@@ -67,6 +74,7 @@ class pomodoro(commands.Cog):
         """
         #create pomodoro category (if it does not already exist), dont worry about this yet until discussed with mark
         # await member.guild.create_category()
+        ctx.send("Attempting to create a new session...")
         #create a new role
         self.groupNum+=1
         if self.groupNum == 1: #begin timer if this is the first study session yet
@@ -98,6 +106,7 @@ class pomodoro(commands.Cog):
         addTime = datetime.timedelta(minutes=25)
         newTime = currTime + addTime
         await self.timeOp.put((newTime.hour, newTime.minute), (newRole, "breakstart"))
+        ctx.send("New session has been started. Good Luck!")
 
     @commands.command(name="endSession", description="ends an existing study session")
     async def forceEndSession(self, ctx, role: discord.role):
@@ -116,17 +125,18 @@ class pomodoro(commands.Cog):
         #delete role
         await role.delete()
         self.groupNum-=1
+        #last group study session has ended, stop looking for checkpoints every minute
         if self.groupNum == 0:
             self.peekCheckpoints.cancel()
 
-
+    
     async def checkReactions(self, mess: discord.Message):
         if len(mess.reactions)>0:
             return True
 
     #TODO: how does this loop get started? (upon first group being made)
     @tasks.loop(minutes=1.0) #check if we reached any of the upcoming checkpoints every minute
-    async def peekCheckpoints(self, fname: str):
+    async def peekCheckpoints(self):
         """
         checks if the current time matches any of the checkpoint times found in the file given by fname
         """
@@ -167,5 +177,6 @@ class pomodoro(commands.Cog):
                 self.timeOp.pop((newTime.hour, newTime.minute))
 
 async def setup(bot):
+    print("test")
     await bot.add_cog(pomodoro(bot))
     
