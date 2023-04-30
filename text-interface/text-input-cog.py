@@ -1,6 +1,8 @@
 import discord
 from discord.ext import commands
 from database.database_curator import tasksDatabase
+import asyncio
+import os
 
 class MyModal(discord.ui.Modal):
     def __init__(self, *args, **kwargs) -> None:
@@ -47,6 +49,36 @@ class Basics(commands.Cog):
     async def complete(self, ctx, channel: discord.TextChannel, text: str):
         #remove task from database
         await channel.send(text)
+
+    @commands.command(name="file", aliases=["fromfile"])
+    async def file(self, ctx):
+        # need to check if timezone exists; if not, the user cannot run this command
+        # user_data = self._database.get_user(ctx.author.id)
+        # if not user_data:
+        #     await ctx.send("You don't have a timezone!!")
+        #     return
+        # elif "timezone" not in user_data:
+        #     await ctx.send("You don't have a timezone!!")
+        #     return
+
+        await ctx.author.send("You have 10 seconds to upload a file.")
+
+        def check(m: discord.Message):
+            extensions = [".ical", ".ics", ".ifb", ".icalendar"]
+            return m.author.id == ctx.author.id and m.channel.id == ctx.author.dm_channel.id and m.attachments \
+                and os.path.splitext(m.attachments[0].filename)[1] in extensions
+
+        try:
+            msg = await self.bot.wait_for('message', check=check, timeout=10)
+        except asyncio.TimeoutError:
+            await ctx.send("You did not respond in time.")
+            return
+        else:
+            await ctx.send(f"You responded with {msg.content}!")
+            return
+
+
+        
 
 
 def setup(bot):
