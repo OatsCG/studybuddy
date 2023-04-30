@@ -1,0 +1,123 @@
+<html>
+    <style>
+        .background {
+            background: linear-gradient(90deg, rgba(233,84,84,1) 0%, rgba(210,117,196,1) 50%, rgba(54,94,227,1) 100%);
+        }
+
+        .title {
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: "Georgia";
+            font-size: 14vmin;
+            text-align: center;
+            pointer-events: none;
+            color: #ffffffee;
+            filter: drop-shadow(0px 0px 15px #00000077);
+        }
+
+        .subtitle {
+            position: absolute;
+            top: 80%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: "Georgia";
+            font-size: 5vmin;
+            text-align: center;
+            pointer-events: none;
+            color: #ffffffdd;
+            filter: drop-shadow(0px 0px 15px #00000077);
+        }
+
+        .continuedinfo {
+            margin: 50px;
+        }
+
+        .description {
+            font-family: "Georgia";
+            font-size: 20px;
+            text-align: center;
+            pointer-events: none;
+            color: #ffffffdd;
+            filter: drop-shadow(0px 0px 15px #00000077);
+        }
+
+        .buttons {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            text-align: center;
+            justify-content: center;
+        }
+
+        .discordButton {
+            font-family: "Arial";
+            font-weight: lighter;
+            font-size: 30px;
+            text-align: center;
+            color: #ffffffdd;
+            border-radius: 8px;
+            background-color: #535461;
+            padding: 12px 18px;
+            margin: 15px;
+            border: none;
+        }
+
+        .githubButton {
+            font-family: "Georgia";
+            font-size: 30px;
+            text-align: center;
+            color: #ffffffdd;
+            border-radius: 8px;
+            background-color: #161b22;
+            padding: 12px 18px;
+            margin: 15px;
+            border: none;
+        }
+
+        .extrainfo {
+            font-family: "Georgia";
+            font-size: 30px;
+            text-align: center;
+            pointer-events: none;
+            color: #ffffffdd;
+            filter: drop-shadow(0px 0px 15px #00000077);
+        }
+
+    </style>
+    <body class="background">
+        <script type="module" src="https://unpkg.com/@splinetool/viewer@0.9.314/build/spline-viewer.js"></script>
+<spline-viewer loading-anim url="https://prod.spline.design/oiEUrgiZEhDMd4r7/scene.splinecode"></spline-viewer>
+        <h1 class="title">
+            StudyBuddy
+        </h1>
+        <h2 class="subtitle">
+            Created by name1, name2, name3, name4
+        </h2>
+        <div class="continuedinfo">
+            <p class="description">
+                This is where we will briefly describe the discord bot. It is a bot on discord that does discord things. View this project on GitHub for more.
+            </p>
+            <br>
+            <div class="buttons">
+                <button class="discordButton">
+                    Add to Discord
+                </button>
+                <button class="githubButton">
+                    Open in GitHub
+                </button>
+            </div>
+            <br>
+            <div>
+                <h2 class="extrainfo">
+                    EXTRA INFO
+                </h2>
+                <p class="description">
+                    Research behind pomodoro? 
+                </p>
+            </div>
+        </div>
+    </body>
+
+</html>
