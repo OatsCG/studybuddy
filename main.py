@@ -6,8 +6,7 @@ from dotenv import load_dotenv  # pip install python-dotenv
 load_dotenv()
 TOKEN = os.getenv("TOKEN")
 
-class MyBot(commands.Bot):
-
+class mainBot(commands.Bot):
     def __init__(self):
         super().__init__(
             command_prefix="s.",
