@@ -119,12 +119,14 @@ def parse_ics(buffer) -> list[dict] | str:
                     rules_index = curr_event["Repeating"].index("RRULE:") + len("RRULE:")
                     rule = curr_event["Repeating"][rules_index:]
                     rule = rrulestr(rule, dtstart=start_time.astimezone(pytz.utc))
-                    for time in list(rule):  # all the times of the event
+                    for i, time in enumerate(list(rule)):  # all the times of the event
                         new_event = curr_event.copy()
                         new_event.pop("Repeating")
                         new_event["Start time"] = datetime.datetime.timestamp(time - get_dst(time, start_time.tzinfo.zone))
                         new_event["End time"] = datetime.datetime.timestamp(time + duration - get_dst(time, start_time.tzinfo.zone))
                         events.append(new_event)
+                        if i == 1000:
+                            break
                 
                 curr_event.pop("Repeating")
                 curr_event["Start time"] = datetime.datetime.timestamp(curr_event["Start time"])
