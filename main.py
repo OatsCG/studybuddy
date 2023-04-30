@@ -3,6 +3,7 @@ from discord.ext import commands
 import os
 from dotenv import load_dotenv  # pip install python-dotenv
 
+load_dotenv()
 TOKEN = os.getenv("TOKEN")
 
 class MyBot(commands.Bot):
