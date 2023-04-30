@@ -181,8 +181,7 @@ def parse_ics(path: str) -> dict | int:
         return events
     # In case anything goes wrong.
     except Exception as e:
-        print(e)
-        return -1
+        return e
 
 
 if __name__ == "__main__":
