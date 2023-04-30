@@ -23,7 +23,7 @@ class MyBot(commands.Bot):
         ]
 
         for ext in self.initial_extensions:
-            self.load_extesion(ext)
+            self.load_extension(ext)
 
 
 bot = MyBot()
