@@ -1,7 +1,7 @@
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 from database.database_curator import tasksDatabase
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 import asyncio
 import os
 from database.ics_parser import parse_ics
@@ -32,6 +32,7 @@ class TextInputter(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self._database = tasksDatabase("tasks.db")
+        self.ping_users.start()
 
     @commands.command(name="add")
     async def add(self, ctx, *args):
@@ -91,7 +92,7 @@ class TextInputter(commands.Cog):
         events = self._database.get_user_tasks(ctx.author.id)
         page_size = 10  # define the page size
         num_pages = math.ceil(len(events) / page_size)  # useful for determining bounds of page_number
-        page_number = 3  # counting starts at 1, not 0.
+        page_number = 1  # counting starts at 1, not 0.
 
         print(events[(page_number-1)*page_size:min(page_number*page_size, len(events))])  # prints out page_size items per page
 
@@ -261,6 +262,48 @@ class TextInputter(commands.Cog):
             
             await ctx.send("Calendar information has been parsed successfully.")
             return
+        
+    @tasks.loop(minutes=1)
+    async def ping_users(self):
+        users = self._database._get_all_users()
+        print(users)
+        for user in users:
+            time_zone = user["timezone"]
+            time_zone = pytz.timezone(time_zone)
+            assignments = self._database.get_user_tasks(user["discordID"])
+            print(assignments)
+            if len(assignments) >= 1:
+                assignment = assignments[0]
+                # need to convert to user's timezone
+                start_date = time_zone.localize(datetime.fromtimestamp(assignment["startdate"]))
+                
+                if start_date < datetime.now(tz=time_zone):
+                    self._database.remove_task(user["discordID"], 0)
+                if start_date < (datetime.now(tz=time_zone) + timedelta(hours=1, minutes=30)):
+                    username = self.bot.get_user(int(user["discordID"]))
+                    await username.send(f"Your assignment {assignment['name']} is due in {(start_date - datetime.now(tz=time_zone)).seconds // 60} minutes!")
 
+            if len(assignments) >= 2:
+                assignment = assignments[1]
+                # need to convert to user's timezone
+                start_date = time_zone.localize(datetime.fromtimestamp(assignment["startdate"]))
+                
+                if start_date < datetime.now(tz=time_zone):
+                    self._database.remove_task(user["discordID"], 1)
+                if start_date < (datetime.now(tz=time_zone) + timedelta(hours=1, minutes=30)):
+                    username = self.bot.get_user(int(user["discordID"]))
+                    await username.send(f"Your assignment {assignment['name']} is due in {(start_date - datetime.now(tz=time_zone)).seconds // 60} minutes!")
+
+            if len(assignments) >= 3:
+                assignment = assignments[2]
+                # need to convert to user's timezone
+                start_date = time_zone.localize(datetime.fromtimestamp(assignment["startdate"]))
+                
+                if start_date < datetime.now(tz=time_zone):
+                    self._database.remove_task(user["discordID"], 2)
+                if start_date < (datetime.now(tz=time_zone) + timedelta(hours=1, minutes=30)):
+                    username = self.bot.get_user(int(user["discordID"]))
+                    await username.send(f"Your assignment {assignment['name']} is due in {(start_date - datetime.now(tz=time_zone)).seconds // 60} minutes!")
+            
 def setup(bot):
     bot.add_cog(TextInputter(bot))
