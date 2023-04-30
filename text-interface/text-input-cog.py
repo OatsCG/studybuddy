@@ -408,6 +408,11 @@ class TextInputter(commands.Cog):
             value="End the session specified by <role>.",
             inline=False
         )
+        embed.add_field(
+            name="**Invite link**",
+            value="https://discord.com/oauth2/authorize?client_id=1101671372171788399&permissions=36572676081680&scope=bot",
+            inline=False
+        )
         await ctx.send(embed=embed)
 
 
