@@ -4,6 +4,9 @@ from database.database_curator import tasksDatabase
 from datetime import datetime
 import asyncio
 import os
+from database.ics_parser import parse_ics
+import math
+from datetime import datetime
 
 class MyModal(discord.ui.Modal):
     def __init__(self, *args, **kwargs) -> None:
@@ -41,8 +44,8 @@ class TextInputter(commands.Cog):
             return
         task_title = args[0]
         try:
-            task_startdate = datetime.strptime(args[1], '%y/%m/%d %H:%M')
-            task_enddate = datetime.strptime(args[2], '%y/%m/%d %H:%M')
+            task_startdate = datetime.strptime(args[1], '%y/%m/%d-%H:%M')
+            task_enddate = datetime.strptime(args[2], '%y/%m/%d-%H:%M')
         except:
             embed = discord.Embed(color=discord.Colour.brand_red(), title="**s.add 'taskname' startdate enddate**")
             embed.add_field(name="**taskname**", value="str\nThe name of your event\n(must be within quotes)")
@@ -79,23 +82,19 @@ class TextInputter(commands.Cog):
     @commands.command(name="view", aliases=["calendar", "schedule"])
     async def view(self, ctx):
         #list out first 10 tasks
-        tasks = self._database.get_user_tasks(ctx.author.id)
-        page = 0 #IMPLEMENT
-        todolist = [tasks[x] for x in range(page*10, min(len(tasks), (page+1)*10))]
-        #create embed for viewing tasks
-        embed = discord.Embed(
-            title="My Amazing Embed",
-            description="Embeds are super easy, barely an inconvenience.",
-            color=discord.Colour.blurple(), # Pycord provides a class with default colors you can choose from
-        )
-
-        for task in todolist:
-            embed.add_field(name=task["name"], value=task["startdate"] + " - " + task["enddate"], inline=True)
-        
-        #embed.set_footer(text="Footer! No markdown here.") # footers can have icons too
-        embed.set_author(name=ctx.author.name + "'s Schedule", icon_url=ctx.author.display_avatar)
-        embed.set_thumbnail(url="https://example.com/link-to-my-thumbnail.png")
-        embed.set_image(url="https://example.com/link-to-my-banner.png")
+        # just gonna print out the first 10 tasks 
+        # Reminder: format is "name", "startdate", "enddate"
+        events = self._database.get_user_tasks(ctx.author.id)
+        num_pages = math.floor(events / 10)
+        for i in range(num_pages):
+            if i == num_pages - 1:  # not guaranteed to have all 10 items per page
+                pass
+            else:
+                msg = []
+                for j in range(i * 10, (i+1) * 10):  # getting items per page
+                    msg.append(f"Name: {events[j]['name']}, Start: {events[j]['startdate']}, End: {events[j]['enddate']}")
+                msg = "\n".join(msg)
+                await ctx.send(msg)
     
         await ctx.reply(embed=embed)
     
@@ -123,7 +122,7 @@ class TextInputter(commands.Cog):
         #     await ctx.send("You don't have a timezone!!")
         #     return
 
-        await ctx.author.send("You have 10 seconds to upload a file.")
+        await ctx.author.send("You have 30 seconds to upload a file.")
 
         def check(m: discord.Message):
             extensions = [".ical", ".ics", ".ifb", ".icalendar"]
@@ -131,12 +130,18 @@ class TextInputter(commands.Cog):
                 and os.path.splitext(m.attachments[0].filename)[1] in extensions
 
         try:
-            msg = await self.bot.wait_for('message', check=check, timeout=10)
+            msg = await self.bot.wait_for('message', check=check, timeout=30)
         except asyncio.TimeoutError:
             await ctx.send("You did not respond in time.")
             return
         else:
-            await ctx.send(f"You responded with {msg.content}!")
+
+            msg_content = await msg.attachments[0].read()
+            ics_parsed = parse_ics(msg_content)
+            for event in ics_parsed:
+                self._database.add_new_task(ctx.author.id, event["Name"], event["Start time"], event["End time"])
+            
+            await ctx.send("Calendar information has been parsed successfully.")
             return
 
 def setup(bot):
