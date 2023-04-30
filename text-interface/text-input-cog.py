@@ -59,13 +59,13 @@ class TextInputter(commands.Cog):
             return
         if self._database.get_user(ctx.author.id) is None:
             embed = discord.Embed(color=discord.Colour.blurple())
-            embed.add_field(name="You have not registered a timezone, use **s.timezone**")
+            embed.add_field(name="You have not registered a timezone, use **s.timezone**", value="")
             await ctx.reply(embed=embed)
             return
         new_task_assert = self._database.add_new_task(ctx.author.id, task_title, task_startdate, task_enddate)
         if not new_task_assert:
             embed = discord.Embed(color=discord.Colour.blurple())
-            embed.add_field(name=f"Error creating new user with id {ctx.author.id}")
+            embed.add_field(name=f"Error creating new user with id {ctx.author.id}", value="")
             await ctx.reply(embed=embed)
             return
         #create embed for newly added task
