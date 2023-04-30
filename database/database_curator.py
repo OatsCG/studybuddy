@@ -151,6 +151,22 @@ class tasksDatabase:
             return r
         except:
             return []
+        
+    def _get_all_users(self) -> list[dict[str, str]]:
+        '''
+        Returns a list of all users.
+
+        [{"discordID": str, "timezone": str}, ...]
+        '''
+        try:
+            self._db_cursor.execute(f"SELECT * FROM Users")
+            result = self._db_cursor.fetchall()
+            r = []
+            for user in result:
+                r.append({"discordID": user[0], "timezone": user[1]})
+            return r
+        except:
+            return []
     
     def edit_user_timezone(self, discordID: int, timezone: str) -> bool:
         '''
