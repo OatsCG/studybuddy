@@ -3,6 +3,7 @@ from discord.ext import commands
 from database.database_curator import tasksDatabase
 import asyncio
 import os
+from database.ics_parser import parse_ics
 
 class MyModal(discord.ui.Modal):
     def __init__(self, *args, **kwargs) -> None:
@@ -61,7 +62,7 @@ class Basics(commands.Cog):
         #     await ctx.send("You don't have a timezone!!")
         #     return
 
-        await ctx.author.send("You have 10 seconds to upload a file.")
+        await ctx.author.send("You have 30 seconds to upload a file.")
 
         def check(m: discord.Message):
             extensions = [".ical", ".ics", ".ifb", ".icalendar"]
@@ -69,12 +70,18 @@ class Basics(commands.Cog):
                 and os.path.splitext(m.attachments[0].filename)[1] in extensions
 
         try:
-            msg = await self.bot.wait_for('message', check=check, timeout=10)
+            msg = await self.bot.wait_for('message', check=check, timeout=30)
         except asyncio.TimeoutError:
             await ctx.send("You did not respond in time.")
             return
         else:
-            await ctx.send(f"You responded with {msg.content}!")
+
+            msg_content = await msg.attachments[0].read()
+            ics_parsed = parse_ics(msg_content)
+            for event in ics_parsed:
+                self._database.add_new_task(ctx.author.id, event["Name"], event["Start time"], event["End time"])
+            
+            await ctx.send("Calendar information has been parsed successfully.")
             return
 
 

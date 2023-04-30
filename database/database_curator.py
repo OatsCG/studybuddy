@@ -1,6 +1,6 @@
 import sqlite3
 from typing import Any, Union
-from ics_parser import parse_ics
+from database.ics_parser import parse_ics
 
 class tasksDatabase:
     '''
@@ -201,11 +201,3 @@ if __name__ == "__main__":
     print(database.get_user_tasks(123) == [{'name': 'CSC148 task 1', 'startdate': 123456, 'enddate': 123456}, {'name': 'CSC148 task 3', 'startdate': 999999, 'enddate': 999999}])
     print(database.remove_task(123, 1))
     print(database.get_user_tasks(123) == [{'name': 'CSC148 task 1', 'startdate': 123456, 'enddate': 123456}])
-
-    user = 123
-    calendar_path = "test3.ics"
-    assignment_dict = parse_ics(calendar_path)
-    for assignment in assignment_dict:
-        print(database.add_new_task(user, assignment["Name"], assignment["Start time"], assignment["End time"]))
-
-
