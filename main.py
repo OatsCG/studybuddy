@@ -20,12 +20,12 @@ class mainBot(commands.Bot):
 
         self.initial_extensions = [
             'text-interface.text-input-cog',
-            # 'ext.pomodoro',
+            'ext.pomodoro',
         ]
 
         for ext in self.initial_extensions:
             self.load_extension(ext)
 
 
-bot = MyBot()
+bot = mainBot()
 bot.run(TOKEN)
