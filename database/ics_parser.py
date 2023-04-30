@@ -83,7 +83,7 @@ def get_dst(dt, timezone):
     # timezone_aware_date = timezone.localize(dt, is_dst=None)
     # return timezone_aware_date.tzinfo._dst.seconds != 0
 
-def parse_ics(path: str) -> dict | str:
+def parse_ics(path: str) -> dict | int:
     """Parse the .ics file indicated by <path>.
     """
     try:
@@ -123,7 +123,7 @@ def parse_ics(path: str) -> dict | str:
                             new_event["End time"] = datetime.datetime.timestamp(time + duration - get_dst(time, start_time.tzinfo.zone))
                             events.append(new_event)
                     
-                        curr_event.pop("Repeating")
+                    curr_event.pop("Repeating")
                     curr_event["Start time"] = datetime.datetime.timestamp(curr_event["Start time"])
                     if "End time" in curr_event:
                         curr_event["End time"] = datetime.datetime.timestamp(curr_event["End time"])
@@ -178,12 +178,12 @@ def parse_ics(path: str) -> dict | str:
 
                     curr_event["Repeating"] = line
 
-            return events
+        return events
     # In case anything goes wrong.
     except Exception as e:
-        return -1
+        return e
 
 
 if __name__ == "__main__":
-    db = parse_ics("test4.ics")
+    db = parse_ics("test3.ics")
     print(db)
