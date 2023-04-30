@@ -14,4 +14,4 @@ class mainBot(commands.Bot):
             self.load_extension(ext)
 
 bot = mainBot()
-bot.run("MTEwMTY3MTM3MjE3MTc4ODM5OQ.GTcS3t.8MbLzaZt4AS4Lmzz47ltq9NvfRz4aaw2tKISbE")
+bot.run("TOKEN")

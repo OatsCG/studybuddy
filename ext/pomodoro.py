@@ -59,8 +59,8 @@ class pomodoro(commands.Cog):
         Allows member to join the existing study group indicated by role
         """
         exists = False
-        for role in ctx.guild.roles:
-            if(role == role):
+        for checkRole in ctx.guild.roles:
+            if(checkRole == role):
                 exists = True
         if exists:
             await ctx.author.add_roles(role)
