@@ -7,6 +7,7 @@ import os
 from database.ics_parser import parse_ics
 import math
 from datetime import datetime
+import pytz
 
 class MyModal(discord.ui.Modal):
     def __init__(self, *args, **kwargs) -> None:
@@ -88,16 +89,31 @@ class TextInputter(commands.Cog):
         # just gonna print out the first 10 tasks 
         # Reminder: format is "name", "startdate", "enddate"
         events = self._database.get_user_tasks(ctx.author.id)
-        num_pages = math.floor(len(events) / 10)
-        for i in range(5):
-            if i == num_pages - 1:  # not guaranteed to have all 10 items per page
-                pass
-            else:
-                msg = []
-                for j in range(i * 10, (i+1) * 10):  # getting items per page
-                    msg.append(f"Name: {events[j]['name']}, Start: {events[j]['startdate']}, End: {events[j]['enddate']}")
-                msg = "\n".join(msg)
-                await ctx.send(msg)
+        page_size = 10  # define the page size
+        num_pages = math.ceil(len(events) / page_size)  # useful for determining bounds of page_number
+        page_number = 1  # counting starts at 1, not 0.
+
+        print(events[(page_number-1)*page_size:min(page_number*page_size, len(events))])  # prints out page_size items per page
+
+        # figuring out time stuff
+
+        # first i need to get the user's timezone
+        user_info = self._database.get_user(ctx.author.id)
+        time_zone = user_info['timezone']
+        time_zone = pytz.timezone(time_zone)
+
+        # Step 2: Timezone fuckery
+        page_of_events = events[(page_number - 1) * page_size:min(page_number * page_size, len(events))]
+        for event in page_of_events:
+            name = event['name']
+            start_date = event['startdate']  # needs to be converted to local timezone
+            end_date = event['enddate']      # needs to be converted to local timezone
+            start_date = time_zone.localize(datetime.fromtimestamp(start_date))
+            end_date = time_zone.localize(datetime.fromtimestamp(end_date))
+            print(f"Name: {name}, Startdate: {str(start_date)}, Enddate: {str(end_date)}")
+
+        # Step 3: Making it look pretty!!
+        # -charlie's work
 
     
     @commands.command(name="complete", aliases=["remove", "delete"])
