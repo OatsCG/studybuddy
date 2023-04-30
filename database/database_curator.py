@@ -163,7 +163,7 @@ class tasksDatabase:
             result = self._db_cursor.fetchall()
             r = []
             for user in result:
-                r.append({"discordID": user[0], "timezone": user[1]})
+                r.append({"discordID": self._unformat_discordID(user[0]), "timezone": user[1]})
             return r
         except:
             return []
