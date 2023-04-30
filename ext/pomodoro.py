@@ -195,6 +195,9 @@ class pomodoro(commands.Cog):
                         if len(channel.members) <= 0: #end session
                             await self.endSessionRoleNoCTX(operation[0])
                         else: #continue breakstart
+                            for txtchannel in operation[0].guild.text_channels:
+                                if txtchannel.name == "{channelName}text".format(channelName=operation[0].name):
+                                    await txtchannel.send("New 25 minute study period has begun!")
                             addTime = datetime.timedelta(minutes=1)
                             newTime = currTime + addTime
                             newKey = (newTime.hour, newTime.minute)
