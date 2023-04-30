@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 from database.database_curator import tasksDatabase
+from datetime import datetime
 import asyncio
 import os
 
@@ -23,7 +24,7 @@ class MyView(discord.ui.View):
         await interaction.response.send_modal(MyModal(title="Modal via Button"))
 
 
-class Basics(commands.Cog):
+class TextInputter(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self._database = tasksDatabase("tasks.db")
@@ -108,6 +109,14 @@ class Basics(commands.Cog):
         #remove task from database
         await channel.send(text)
 
+    @commands.command(name="timezone", aliases=["tz"])
+    async def timezone(self, ctx, *args):
+        tz = " ".join(args)
+        self._database.add_new_user(ctx.author.id, tz)
+        embed = discord.Embed(color=discord.Colour.brand_red(), title=f"**Timezone Updated to '{tz}'**")
+        embed.add_field(name="You can now add to your schedule with **s.add**")
+        await ctx.reply(embed=embed)
+
     @commands.command(name="file", aliases=["fromfile"])
     async def file(self, ctx):
         # need to check if timezone exists; if not, the user cannot run this command
@@ -136,4 +145,4 @@ class Basics(commands.Cog):
             return
 
 def setup(bot):
-    bot.add_cog(Basics(bot))
+    bot.add_cog(TextInputter(bot))
