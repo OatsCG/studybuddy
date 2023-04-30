@@ -91,9 +91,9 @@ class TextInputter(commands.Cog):
         time_zone = pytz.timezone(time_zone)
 
         # Step 3: Making it look pretty!!
-        embed = discord.Embed()
+        embed = discord.Embed(color=discord.Colour.brand_red())
         embed.set_author(name=f"{ctx.author.name}'s Calendar", icon_url=ctx.author.avatar.url)  # author
-        embed.set_footer(text=f"Displaying {(page_number - 1) * 10 + 1} to {(page_number) * 10} of {len(events)}")
+        embed.set_footer(text=f"Displaying {(page_number - 1) * 10 + 1} to {min((page_number) * 10, len(events))} of {len(events)}")
         # creating fields for each event
         page_of_events = events[(page_number - 1) * page_size:min(page_number * page_size, len(events))]
         for i, event in enumerate(page_of_events):
@@ -121,7 +121,7 @@ class TextInputter(commands.Cog):
                 old_page_number = max(math.ceil(int(embed.footer.text.split(' ')[1]) / 10) - 1, 1)
 
                 page_of_events = events[(old_page_number - 1) * page_size:min(old_page_number * page_size, len(events))]
-                new_embed = discord.Embed()
+                new_embed = discord.Embed(color=discord.Colour.brand_red())
                 new_embed.set_author(name=embed.author.name, icon_url=embed.author.url)
                 new_embed.set_footer(text=f"Displaying {(old_page_number - 1) * 10 + 1} to {min((old_page_number) * 10, len(events))} of {len(events)}")
                 for i, event in enumerate(page_of_events):
@@ -147,9 +147,9 @@ class TextInputter(commands.Cog):
                 old_page_number = min(math.ceil(int(embed.footer.text.split(' ')[1]) / 10) + 1, num_pages)
 
                 page_of_events = events[(old_page_number - 1) * page_size:min(old_page_number * page_size, len(events))]
-                new_embed = discord.Embed()
+                new_embed = discord.Embed(color=discord.Colour.brand_red())
                 new_embed.set_author(name=embed.author.name, icon_url=embed.author.url)
-                new_embed.set_footer(text=f"Displaying {(old_page_number - 1) * 10 + 1} to {(old_page_number) * 10} of {len(events)}")
+                new_embed.set_footer(text=f"Displaying {(old_page_number - 1) * 10 + 1} to {min((old_page_number) * 10, len(events))} of {len(events)}")
                 for i, event in enumerate(page_of_events):
                     name = event['name']
                     start_date = event['startdate']  # needs to be converted to local timezone
@@ -266,7 +266,12 @@ class TextInputter(commands.Cog):
     @commands.command(name="timezone", aliases=["tz"])
     async def timezone(self, ctx, *args):
         tz = " ".join(args)
-        if self._database.get_user(ctx.author.id) is None:
+        if tz not in pytz.all_timezones:
+            embed = discord.Embed(color=discord.Colour.brand_red(), title=f"**Invalid timezone!!**")
+            embed.add_field(name="Please provide a valid tz-name for your timezone.", value="")
+            await ctx.reply(embed=embed)
+            return
+        elif self._database.get_user(ctx.author.id) is None:
             self._database.add_new_user(ctx.author.id, tz)
         else:
             self._database.edit_user_timezone(ctx.author.id, tz)
