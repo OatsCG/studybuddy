@@ -4,6 +4,8 @@ from database.database_curator import tasksDatabase
 import asyncio
 import os
 from database.ics_parser import parse_ics
+import math
+from datetime import datetime
 
 class MyModal(discord.ui.Modal):
     def __init__(self, *args, **kwargs) -> None:
@@ -30,16 +32,70 @@ class Basics(commands.Cog):
         self._database = tasksDatabase("tasks.db")
 
     @commands.command(name="add")
-    async def add(self, ctx: commands.Context):
-        await ctx.send(view=MyView())
-
-        #if self._database.get_user(ctx.author.id) is None:
-            #await ctx.send("Hello!")
+    async def add(self, ctx, *args):
+        if len(args) != 2 and len(args) != 3:
+            embed = discord.Embed(color=discord.Colour.brand_red(), title="**s.add 'taskname' startdate enddate**")
+            embed.add_field(name="**taskname**", value="str\nThe name of your event\n(must be within quotes)")
+            embed.add_field(name="**startdate**", value="YY/MM/DD-HH:SS\nThe start/due date of your task")
+            embed.add_field(name="**enddate (opt.)**", value="YY/MM/DD-HH:SS\nThe end date of your task")
+            embed.set_footer(text="s.add")
+            await ctx.reply(embed=embed)
+            return
+        task_title = args[0]
+        try:
+            task_startdate = datetime.strptime(args[1], '%y/%m/%d-%H:%M')
+            task_enddate = datetime.strptime(args[2], '%y/%m/%d-%H:%M')
+        except:
+            embed = discord.Embed(color=discord.Colour.brand_red(), title="**s.add 'taskname' startdate enddate**")
+            embed.add_field(name="**taskname**", value="str\nThe name of your event\n(must be within quotes)")
+            embed.add_field(name="**startdate**", value="YY/MM/DD-HH:SS\nThe start/due date of your task")
+            embed.add_field(name="**enddate (opt.)**", value="YY/MM/DD-HH:SS\nThe end date of your task")
+            embed.set_footer(text="s.add")
+            await ctx.reply(embed=embed)
+            return
+        if self._database.get_user(ctx.author.id) is None:
+            embed = discord.Embed(color=discord.Colour.blurple())
+            embed.add_field(name="You have not registered a timezone, use **s.timezone**")
+            await ctx.reply(embed=embed)
+            return
+        new_task_assert = self._database.add_new_task(ctx.author.id, task_title, task_startdate, task_enddate)
+        if not new_task_assert:
+            embed = discord.Embed(color=discord.Colour.blurple())
+            embed.add_field(name=f"Error creating new user with id {ctx.author.id}")
+            await ctx.reply(embed=embed)
+            return
+        #create embed for newly added task
+        embed = discord.Embed(
+            title="My Amazing Embed",
+            description="Embeds are super easy, barely an inconvenience.",
+            color=discord.Colour.blurple(), # Pycord provides a class with default colors you can choose from
+        )
+        if task_startdate == task_enddate:
+            embed = discord.Embed(color=discord.Colour.brand_red(), title=f"**Successfully added {task_title}**")
+            embed.add_field(name=f"**{task_title}**", value=f"{task_startdate.strftime('%a %d %b %Y %I:%M%p')}")
+            embed.set_footer(text="use **s.view** to view full schedule.")
+            await ctx.reply(embed=embed)
+        else:
+            await ctx.reply(f"**{task_title}** added to schedule from **{task_startdate.strftime('%a %d %b %Y %I:%M%p')}** to {task_enddate.strftime('%a %d %b %Y %I:%M%p')}! use **s.view** to view your schedule.")
     
+
     @commands.command(name="view", aliases=["calendar", "schedule"])
-    async def view(self, ctx, text: str):
+    async def view(self, ctx):
         #list out first 10 tasks
-        await ctx.send(text)
+        # just gonna print out the first 10 tasks 
+        # Reminder: format is "name", "startdate", "enddate"
+        events = self._database.get_user_tasks(ctx.author.id)
+        num_pages = math.floor(events / 10)
+        for i in range(num_pages):
+            if i == num_pages - 1:  # not guaranteed to have all 10 items per page
+                pass
+            else:
+                msg = []
+                for j in range(i * 10, (i+1) * 10):  # getting items per page
+                    msg.append(f"Name: {events[j]['name']}, Start: {events[j]['startdate']}, End: {events[j]['enddate']}")
+                msg = "\n".join(msg)
+                await ctx.send(msg)
+                
     
     @commands.command(name="upload", aliases=["ics"])
     async def upload(self, ctx, channel: discord.TextChannel, text: str):
