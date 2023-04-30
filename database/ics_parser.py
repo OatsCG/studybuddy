@@ -128,10 +128,11 @@ def parse_ics(buffer) -> list[dict] | str:
                         if i == 1000:
                             break
                 
-                curr_event.pop("Repeating")
+                    curr_event.pop("Repeating")
                 curr_event["Start time"] = datetime.datetime.timestamp(curr_event["Start time"])
                 if "End time" in curr_event:
                     curr_event["End time"] = datetime.datetime.timestamp(curr_event["End time"])
+                print(curr_event)
                 events.append(curr_event)
             # Start of the event
             elif line == "BEGIN:VEVENT":
