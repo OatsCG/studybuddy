@@ -88,8 +88,8 @@ class TextInputter(commands.Cog):
         # just gonna print out the first 10 tasks 
         # Reminder: format is "name", "startdate", "enddate"
         events = self._database.get_user_tasks(ctx.author.id)
-        num_pages = math.floor(events / 10)
-        for i in range(num_pages):
+        num_pages = math.floor(len(events) / 10)
+        for i in range(5):
             if i == num_pages - 1:  # not guaranteed to have all 10 items per page
                 pass
             else:
@@ -98,8 +98,7 @@ class TextInputter(commands.Cog):
                     msg.append(f"Name: {events[j]['name']}, Start: {events[j]['startdate']}, End: {events[j]['enddate']}")
                 msg = "\n".join(msg)
                 await ctx.send(msg)
-    
-        await ctx.reply(embed=embed)
+
     
     @commands.command(name="complete", aliases=["remove", "delete"])
     async def complete(self, ctx, channel: discord.TextChannel, text: str):
