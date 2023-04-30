@@ -9,25 +9,6 @@ import math
 from datetime import datetime
 import pytz
 
-class MyModal(discord.ui.Modal):
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-
-        self.add_item(discord.ui.InputText(label="Short Input"))
-        self.add_item(discord.ui.InputText(label="Long Input", style=discord.InputTextStyle.long))
-
-    async def callback(self, interaction: discord.Interaction):
-        embed = discord.Embed(title="Modal Results")
-        embed.add_field(name="Short Input", value=self.children[0].value)
-        embed.add_field(name="Long Input", value=self.children[1].value)
-        await interaction.response.send_message(embeds=[embed])
-
-class MyView(discord.ui.View):
-    @discord.ui.button(label="Send Modal")
-    async def button_callback(self, button, interaction):
-        await interaction.response.send_modal(MyModal(title="Modal via Button"))
-
-
 class TextInputter(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -40,7 +21,7 @@ class TextInputter(commands.Cog):
             embed.add_field(name="**taskname**", value="str\nThe name of your event\n(must be within quotes)")
             embed.add_field(name="**startdate**", value="YY/MM/DD-HH:SS\nThe start/due date of your task")
             embed.add_field(name="**enddate (opt.)**", value="YY/MM/DD-HH:SS\nThe end date of your task")
-            embed.set_footer(text="s.add")
+            embed.set_footer(text="error; arguments missing")
             await ctx.reply(embed=embed)
             return
         task_title = args[0]
@@ -55,7 +36,7 @@ class TextInputter(commands.Cog):
             embed.add_field(name="**taskname**", value="str\nThe name of your event\n(must be within quotes)")
             embed.add_field(name="**startdate**", value="YY/MM/DD-HH:SS\nThe start/due date of your task")
             embed.add_field(name="**enddate (opt.)**", value="YY/MM/DD-HH:SS\nThe end date of your task")
-            embed.set_footer(text="s.add")
+            embed.set_footer(text="error; invalid date format")
             await ctx.reply(embed=embed)
             return
         if self._database.get_user(ctx.author.id) is None:
@@ -70,18 +51,17 @@ class TextInputter(commands.Cog):
             await ctx.reply(embed=embed)
             return
         #create embed for newly added task
-        embed = discord.Embed(
-            title="My Amazing Embed",
-            description="Embeds are super easy, barely an inconvenience.",
-            color=discord.Colour.brand_red(), # Pycord provides a class with default colors you can choose from
-        )
+        embed = discord.Embed(color=discord.Colour.brand_red())
         if task_startdate == task_enddate:
             embed = discord.Embed(color=discord.Colour.brand_red(), title=f"**Successfully added {task_title}**")
             embed.add_field(name=f"**{task_title}**", value=f"{task_startdate.strftime('%d %b %Y %I:%M%p')}")
-            embed.set_footer(text="use **s.view** to view full schedule.")
+            embed.set_footer(text="use s.view to view full schedule.")
             await ctx.reply(embed=embed)
         else:
-            await ctx.reply(f"**{task_title}** added to schedule from **{task_startdate.strftime('%d %b %Y %I:%M%p')}** to {task_enddate.strftime('%d %b %Y %I:%M%p')}! use **s.view** to view your schedule.")
+            embed = discord.Embed(color=discord.Colour.brand_red(), title=f"**Successfully added {task_title}**")
+            embed.add_field(name=f"**{task_title}**", value=f"{task_startdate.strftime('%d %b %Y %I:%M%p')} to {task_enddate.strftime('%d %b %Y %I:%M%p')}")
+            embed.set_footer(text="use s.view to view full schedule.")
+            await ctx.reply(embed=embed)
 
     @commands.command(name="view", aliases=["calendar", "schedule"])
     async def view(self, ctx):
@@ -115,6 +95,63 @@ class TextInputter(commands.Cog):
         # Step 3: Making it look pretty!!
         # -charlie's work
 
+    @commands.command(name="edit", aliases=["postpone"])
+    async def edit(self, ctx, *args):
+        #s.edit index startdate enddate
+        if len(args) != 2 and len(args) != 3:
+            embed = discord.Embed(color=discord.Colour.brand_red(), title="**s.edit index startdate enddate**")
+            embed.add_field(name="**index**", value="int\nThe index of your event")
+            embed.add_field(name="**startdate**", value="YY/MM/DD-HH:SS\nThe new start/due date of your task")
+            embed.add_field(name="**enddate (opt.)**", value="YY/MM/DD-HH:SS\nThe new end date of your task")
+            embed.set_footer(text="error; missing arguments")
+            await ctx.reply(embed=embed)
+            return
+        index = int(args[0]) - 1
+        try:
+            task_startdate = datetime.strptime(args[1], '%y/%m/%d-%H:%M')
+            if len(args) > 2:
+                task_enddate = datetime.strptime(args[2], '%y/%m/%d-%H:%M')
+            else:
+                task_enddate = task_startdate
+        except:
+            embed = discord.Embed(color=discord.Colour.brand_red(), title="**s.edit index startdate enddate**")
+            embed.add_field(name="**index**", value="int\nThe index of your event")
+            embed.add_field(name="**startdate**", value="YY/MM/DD-HH:SS\nThe new start/due date of your task")
+            embed.add_field(name="**enddate (opt.)**", value="YY/MM/DD-HH:SS\nThe new end date of your task")
+            embed.set_footer(text="error; invalid date format")
+            await ctx.reply(embed=embed)
+            return
+        if self._database.get_user(ctx.author.id) is None:
+            embed = discord.Embed(color=discord.Colour.brand_red())
+            embed.add_field(name="You have not registered a timezone, use **s.timezone**", value="")
+            await ctx.reply(embed=embed)
+            return
+        old_task = self._database.get_user_tasks(ctx.author.id)[index]
+        rf_old_task_assert = self._database.remove_task(ctx.author.id, index)
+        if not rf_old_task_assert:
+            embed = discord.Embed(color=discord.Colour.brand_red())
+            embed.add_field(name=f"Error removing old task at index {index}", value="")
+            await ctx.reply(embed=embed)
+            return
+        new_task_assert = self._database.add_new_task(ctx.author.id, old_task["name"], task_startdate.timestamp(), task_enddate.timestamp())
+        if not new_task_assert:
+            embed = discord.Embed(color=discord.Colour.brand_red())
+            embed.add_field(name=f"Error replacing task at index {index}", value="")
+            await ctx.reply(embed=embed)
+            return
+        #create embed for newly added task
+        embed = discord.Embed(color=discord.Colour.brand_red())
+        if task_startdate == task_enddate:
+            embed = discord.Embed(color=discord.Colour.brand_red(), title=f"**Successfully edited {old_task['name']}**")
+            embed.add_field(name=f"**{old_task['name']}**", value=f"{task_startdate.strftime('%d %b %Y %I:%M%p')}")
+            embed.set_footer(text="use s.view to view full schedule.")
+            await ctx.reply(embed=embed)
+        else:
+            embed = discord.Embed(color=discord.Colour.brand_red(), title=f"**Successfully edited {old_task['name']}**")
+            embed.add_field(name=f"**{old_task['name']}**", value=f"{task_startdate.strftime('%d %b %Y %I:%M%p')} to {task_enddate.strftime('%d %b %Y %I:%M%p')}")
+            embed.set_footer(text="use s.view to view full schedule.")
+            await ctx.reply(embed=embed)
+
     
     @commands.command(name="complete", aliases=["remove", "delete"])
     async def complete(self, ctx, *args):
@@ -124,7 +161,7 @@ class TextInputter(commands.Cog):
             embed.set_footer(text="error; index not given")
             await ctx.reply(embed=embed)
             return
-        index = int(args[0])
+        index = int(args[0]) - 1
         user_tasks = self._database.get_user_tasks(ctx.author.id)
         if index >= 0 and index < len(user_tasks):
             item = user_tasks[index]
