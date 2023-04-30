@@ -45,7 +45,10 @@ class TextInputter(commands.Cog):
         task_title = args[0]
         try:
             task_startdate = datetime.strptime(args[1], '%y/%m/%d-%H:%M')
-            task_enddate = datetime.strptime(args[2], '%y/%m/%d-%H:%M')
+            if len(args) > 2:
+                task_enddate = datetime.strptime(args[2], '%y/%m/%d-%H:%M')
+            else:
+                task_enddate = task_startdate
         except:
             embed = discord.Embed(color=discord.Colour.brand_red(), title="**s.add 'taskname' startdate enddate**")
             embed.add_field(name="**taskname**", value="str\nThe name of your event\n(must be within quotes)")
@@ -106,9 +109,12 @@ class TextInputter(commands.Cog):
     @commands.command(name="timezone", aliases=["tz"])
     async def timezone(self, ctx, *args):
         tz = " ".join(args)
-        self._database.add_new_user(ctx.author.id, tz)
+        if self._database.get_user(ctx.author.id) is None:
+            self._database.add_new_user(ctx.author.id, tz)
+        else:
+            self._database.edit_user_timezone(ctx.author.id, tz)
         embed = discord.Embed(color=discord.Colour.brand_red(), title=f"**Timezone Updated to '{tz}'**")
-        embed.add_field(name="You can now add to your schedule with **s.add**")
+        embed.add_field(name="You can now add to your schedule with **s.add**", value="")
         await ctx.reply(embed=embed)
 
     @commands.command(name="file", aliases=["fromfile"])
