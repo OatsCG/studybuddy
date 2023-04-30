@@ -99,11 +99,6 @@ class TextInputter(commands.Cog):
     
         await ctx.reply(embed=embed)
     
-    @commands.command(name="upload", aliases=["ics"])
-    async def upload(self, ctx, channel: discord.TextChannel, text: str):
-        #dm user to prompt for file
-        await channel.send(text)
-    
     @commands.command(name="complete", aliases=["remove", "delete"])
     async def complete(self, ctx, channel: discord.TextChannel, text: str):
         #remove task from database
