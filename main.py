@@ -10,10 +10,8 @@ class mainBot(commands.Bot):
             case_insensitive=True
         )
         self.initial_extensions = ['ext.pomodoro']
-
-    async def setup_ext(self):
         for ext in self.initial_extensions:
-            await self.load_extension(ext)
+            self.load_extension(ext)
+
 bot = mainBot()
-bot.setup_ext
-bot.run("MTEwMTY3MTM3MjE3MTc4ODM5OQ.G_C3Co.ju76tu0q8bsiUgf2QDzachdbONSg41cHgFJg4g")
+bot.run("MTEwMTY3MTM3MjE3MTc4ODM5OQ.GTcS3t.8MbLzaZt4AS4Lmzz47ltq9NvfRz4aaw2tKISbE")

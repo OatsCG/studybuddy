@@ -9,6 +9,7 @@ class pomodoro(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.groupNum=0
+        self.nameNum=1
         self.songNames = [] #preload all song file names
         self.noiseNames = [] #preload all ambient noise file names
         self.timeOp = {} #dictionary that performs an operation for a given time
@@ -67,6 +68,12 @@ class pomodoro(commands.Cog):
         else:
             await ctx.send("That role does not exist!")
 
+    def hasRole(self, member: discord.Member, role: discord.Role):
+        for memRole in member.roles:
+            if memRole == role:
+                return True
+        return False
+
     @commands.command(name="startSession", description="Begins a new study session")
     async def startSession(self, ctx):
         """
@@ -74,22 +81,22 @@ class pomodoro(commands.Cog):
         """
         #create pomodoro category (if it does not already exist), dont worry about this yet until discussed with mark
         # await member.guild.create_category()
-        ctx.send("Attempting to create a new session...")
+        await ctx.send("Attempting to create a new session...")
         #create a new role
         self.groupNum+=1
         if self.groupNum == 1: #begin timer if this is the first study session yet
             task = self.peekCheckpoints.start()
-        roleName = "Study Group {groupNum}".format(groupNum=self.groupNum)
+        roleName = "studygroup{nameNum}".format(nameNum=self.nameNum)
         newRole = await ctx.guild.create_role(name=roleName)
         #give member the new role
         await ctx.author.add_roles(newRole) #TODO: fix arguments being passed here? probably fine after looking at examples in documentation
         #names for voice and text channels
-        voiceChannelName = "{channelName} voice".format(channelName=roleName)
-        textChannelName = "{channelName} text".format(channelName=roleName)
+        voiceChannelName = "{channelName}voice".format(channelName=roleName)
+        textChannelName = "{channelName}text".format(channelName=roleName)
         #create new vc
-        await ctx.guild.create_voice_channel(name=voiceChannelName) #TODO: fix arguments passed here? probably fine after looking at examples in documentation
+        voiceChannel = await ctx.guild.create_voice_channel(name=voiceChannelName) #TODO: fix arguments passed here? probably fine after looking at examples in documentation
         #create new text channel
-        await ctx.guild.create_text_channel(name=textChannelName) #TODO: fix arguments passed here? probably fine after looking at examples in documentation
+        textChannel = await ctx.guild.create_text_channel(name=textChannelName) #TODO: fix arguments passed here? probably fine after looking at examples in documentation
         #update every channel's read/write permission to false for newRole (excluding the channels 
         #"channelName voice" and "channelName text")
         for channel in ctx.guild.text_channels:
@@ -98,28 +105,30 @@ class pomodoro(commands.Cog):
         for channel in ctx.guild.voice_channels:
             if channel.name != voiceChannelName:
                 await channel.set_permissions(newRole, view_channel=False, connect=False)
-        #TODO:insert break start and break end into file 
-        #ALTERNATIVE: use a dictionary with keys as a tuple to represent the time (hour, minute)
+        for member in ctx.guild.members:
+            if not self.hasRole(member=member, role=newRole):
+                await textChannel.set_permissions(member, send_messages=False)
+                await voiceChannel.set_permissions(member, connect=False)
+                
+        #use a dictionary with keys as a tuple to represent the time (hour, minute)
         #and value as a tuple to represent the role/group to be affected and the operation being called
         #(role, operation), might be a bad design choice idk
-        currTime = await datetime.utcnow()
-        addTime = datetime.timedelta(minutes=25)
+        currTime = datetime.datetime.utcnow()
+        addTime = datetime.timedelta(minutes=1) #TODO: revert back to 25 minutes after testing
         newTime = currTime + addTime
-        await self.timeOp.put((newTime.hour, newTime.minute), (newRole, "breakstart"))
-        ctx.send("New session has been started. Good Luck!")
+        newKey = (newTime.hour, newTime.minute)
+        self.timeOp[newKey] = (newRole, "breakstart")
+        await ctx.send("New session has been started. Please join the specified voice channel. Good Luck!")
 
     @commands.command(name="endSession", description="ends an existing study session")
-    async def forceEndSession(self, ctx, role: discord.role):
+    async def endSession(self, ctx, role: discord.Role):
         """
         ends the session with the given role "role"
         """
+        await ctx.send("Ending the current session for {roleName}".format(roleName = role.name))
         #delete channels
-        for channel in ctx.guild.text_channels:
-            if channel.name == "{channelName} text".format(channelName = role.name):
-                await channel.delete()
-                break
         for channel in ctx.guild.voice_channels:
-            if channel.name == "{channelName} voice".format(channelName = role.name):
+            if channel.name == "{channelName}voice".format(channelName = role.name):
                 await channel.delete()
                 break
         #delete role
@@ -128,7 +137,32 @@ class pomodoro(commands.Cog):
         #last group study session has ended, stop looking for checkpoints every minute
         if self.groupNum == 0:
             self.peekCheckpoints.cancel()
+        await ctx.send("Session successfully ended.")
+        for channel in ctx.guild.text_channels:
+            if channel.name == "{channelName}text".format(channelName = role.name):
+                await channel.delete()
+                break
 
+    async def endSessionRoleNoCTX(self, role: discord.Role):
+        """
+        ends the session with the given role "role"
+        """
+        #delete channels
+        for channel in role.guild.text_channels:
+            if channel.name == "{channelName}text".format(channelName = role.name):
+                await channel.send("Ending the current session due to inactivity".format(roleName = role.name))
+                await channel.delete()
+                break
+        for channel in role.guild.voice_channels:
+            if channel.name == "{channelName}voice".format(channelName = role.name):
+                await channel.delete()
+                break
+        #delete role
+        await role.delete()
+        self.groupNum-=1
+        #last group study session has ended, stop looking for checkpoints every minute
+        if self.groupNum == 0:
+            self.peekCheckpoints.cancel()
     
     async def checkReactions(self, mess: discord.Message):
         if len(mess.reactions)>0:
@@ -140,43 +174,32 @@ class pomodoro(commands.Cog):
         """
         checks if the current time matches any of the checkpoint times found in the file given by fname
         """
-        currTime = await datetime.utcnow()
+        currTime = datetime.datetime.utcnow()
         #TODO: compare currTime.hour and currTime.minute to the next checkpoint
-        if self.timeOp.has_key((currTime.hour, currTime.minute)):
-            operation = self.timeOp.get((currTime.hour, currTime.minute))
+        if (currTime.hour, currTime.minute) in self.timeOp:
+            operation = self.timeOp[(currTime.hour, currTime.minute)]
             if operation[1] == None:
                 pass #do nothing
             elif operation[1] == "breakstart": #TODO: set new breakover event to happen in 5 minutes
-                addTime = await datetime.timedelta(minutes=5)
-                newTime = currTime + addTime   
-                await self.timeOp.put((newTime.hour, newTime.minute), (operation[0], "breakover"))
-                pass
-            elif operation[1] == "breakover": #operation == "breakover", TODO: get user to check in and make new breakstart?
-                mess = None
-                addTime = await datetime.timedelta(minutes=5)
-                newTime = currTime + addTime   
-                await self.timeOp.put((newTime.hour, newTime.minute), (operation[0], "forcequit"))
-                for channel in operation[0].guild.text_channels:
-                    if channel.name == "{channelName} text".format(channelName=operation[0].name):
-                        mess = await channel.send("Please react to this message to indicate you are here")
-                if await self.checkReactions(mess): #TODO: DEFINITELY INCORRECT, NEED TO CONSTANTLY CHECK THIS IN A LOOP (consider task.loop again), reaction detected
-                    #TODO: if user replies and checks in, set forcequit checkpoint to None
-                    await self.timeOp.put((newTime.hour, newTime.minute), (operation[0], None))
-                pass
-            else: #operation[1] == "forcequit", TODO: shut down the study session due to prolonged break
-                for channel in operation[0].guild.text_channels: #delete text channel
-                    if channel.name == "{channelName} text".format(channelName=operation[0].name):
-                        channel.delete()
-                for channel in operation[0].guild.voice_channels: #delete vc
-                    if channel.name == "{channelName} voice".format(channelName=operation[0].name):
-                        channel.delete()
-                operation[0].delete() #delete the role
-                #delete the force quit dict entry
-                addTime = await datetime.timedelta(minutes=5)
+                
+                addTime = datetime.timedelta(minutes=1)
                 newTime = currTime + addTime
-                self.timeOp.pop((newTime.hour, newTime.minute))
+                newKey = (newTime.hour, newTime.minute)
+                self.timeOp[newKey] = (operation[0], "breakover")
+                for channel in operation[0].guild.text_channels:
+                    if channel.name == "{channelName}text".format(channelName=operation[0].name):
+                        await channel.send("5 Minute break has begun!")
+            elif operation[1] == "breakover": #operation == "breakover", TODO: get user to check in and make new breakstart?
+                for channel in operation[0].guild.voice_channels:
+                    if channel.name == "{channelName}voice".format(channelName=operation[0].name):
+                        if len(channel.members) <= 0: #end session
+                            await self.endSessionRoleNoCTX(operation[0])
+                        else: #continue breakstart
+                            addTime = datetime.timedelta(minutes=1)
+                            newTime = currTime + addTime
+                            newKey = (newTime.hour, newTime.minute)
+                            self.timeOp[newKey] = (operation[0], "breakstart")
 
-async def setup(bot):
-    print("test")
-    await bot.add_cog(pomodoro(bot))
+def setup(bot):
+    bot.add_cog(pomodoro(bot))
     
