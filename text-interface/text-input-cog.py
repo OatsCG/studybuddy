@@ -91,7 +91,7 @@ class TextInputter(commands.Cog):
         events = self._database.get_user_tasks(ctx.author.id)
         page_size = 10  # define the page size
         num_pages = math.ceil(len(events) / page_size)  # useful for determining bounds of page_number
-        page_number = 1  # counting starts at 1, not 0.
+        page_number = 3  # counting starts at 1, not 0.
 
         print(events[(page_number-1)*page_size:min(page_number*page_size, len(events))])  # prints out page_size items per page
 
@@ -102,18 +102,86 @@ class TextInputter(commands.Cog):
         time_zone = user_info['timezone']
         time_zone = pytz.timezone(time_zone)
 
-        # Step 2: Timezone fuckery
+        # Step 3: Making it look pretty!!
+        embed = discord.Embed()
+        embed.set_author(name=f"{ctx.author.name}'s Calendar", icon_url=ctx.author.avatar.url)  # author
+        embed.set_footer(text=f"Displaying {(page_number - 1) * 10 + 1} to {(page_number) * 10} of {len(events)}")
+        # creating fields for each event
         page_of_events = events[(page_number - 1) * page_size:min(page_number * page_size, len(events))]
-        for event in page_of_events:
+        for i, event in enumerate(page_of_events):
             name = event['name']
             start_date = event['startdate']  # needs to be converted to local timezone
             end_date = event['enddate']      # needs to be converted to local timezone
             start_date = time_zone.localize(datetime.fromtimestamp(start_date))
             end_date = time_zone.localize(datetime.fromtimestamp(end_date))
-            print(f"Name: {name}, Startdate: {str(start_date)}, Enddate: {str(end_date)}")
+            if start_date != end_date:
+                field_value = f"Start date: {start_date.strftime('%b %e %Y @ %k:%M')}\nEnd date: {end_date.strftime('%b %e %Y @ %k:%M')}"
+            else:
+                field_value = f"Due date: {start_date.strftime('%b %e %Y @ %k:%M')}"
+            embed.add_field(
+                name=f"{(page_number - 1) * 10 + i + 1}) {name}",
+                value=field_value
+            )
 
-        # Step 3: Making it look pretty!!
-        # -charlie's work
+        # now i need to add the buttons
+        class MyView(discord.ui.View):
+
+            @discord.ui.button(label="Previous", style=discord.ButtonStyle.danger)
+            async def on_prev(self, button, interaction):
+
+                embed = interaction.message.embeds[0]
+                old_page_number = max(math.ceil(int(embed.footer.text.split(' ')[1]) / 10) - 1, 1)
+
+                page_of_events = events[(old_page_number - 1) * page_size:min(old_page_number * page_size, len(events))]
+                new_embed = discord.Embed()
+                new_embed.set_author(name=embed.author.name, icon_url=embed.author.url)
+                new_embed.set_footer(text=f"Displaying {(old_page_number - 1) * 10 + 1} to {min((old_page_number) * 10, len(events))} of {len(events)}")
+                for i, event in enumerate(page_of_events):
+                    name = event['name']
+                    start_date = event['startdate']  # needs to be converted to local timezone
+                    end_date = event['enddate']      # needs to be converted to local timezone
+                    start_date = time_zone.localize(datetime.fromtimestamp(start_date))
+                    end_date = time_zone.localize(datetime.fromtimestamp(end_date))
+                    if start_date != end_date:
+                        field_value = f"Start date: {start_date.strftime('%b %e %Y @ %k:%M')}\nEnd date: {end_date.strftime('%b %e %Y @ %k:%M')}"
+                    else:
+                        field_value = f"Due date: {start_date.strftime('%b %e %Y @ %k:%M')}"
+                    new_embed.add_field(
+                        name=f"{(old_page_number - 1) * 10 + i + 1}) {name}",
+                        value=field_value
+                    )
+                await interaction.response.edit_message(view=self, embed=new_embed)
+
+            @discord.ui.button(label="Next", style=discord.ButtonStyle.success)
+            async def on_next(self, button, interaction):
+                embed = interaction.message.embeds[0]
+
+                old_page_number = min(math.ceil(int(embed.footer.text.split(' ')[1]) / 10) + 1, num_pages)
+
+                page_of_events = events[(old_page_number - 1) * page_size:min(old_page_number * page_size, len(events))]
+                new_embed = discord.Embed()
+                new_embed.set_author(name=embed.author.name, icon_url=embed.author.url)
+                new_embed.set_footer(text=f"Displaying {(old_page_number - 1) * 10 + 1} to {(old_page_number) * 10} of {len(events)}")
+                for i, event in enumerate(page_of_events):
+                    name = event['name']
+                    start_date = event['startdate']  # needs to be converted to local timezone
+                    end_date = event['enddate']      # needs to be converted to local timezone
+                    start_date = time_zone.localize(datetime.fromtimestamp(start_date))
+                    end_date = time_zone.localize(datetime.fromtimestamp(end_date))
+                    if start_date != end_date:
+                        field_value = f"Start date: {start_date.strftime('%b %e %Y @ %k:%M')}\nEnd date: {end_date.strftime('%b %e %Y @ %k:%M')}"
+                    else:
+                        field_value = f"Due date: {start_date.strftime('%b %e %Y @ %k:%M')}"
+                    new_embed.add_field(
+                        name=f"{(old_page_number - 1) * 10 + i + 1}) {name}",
+                        value=field_value
+                    )
+
+                embed = new_embed
+                await interaction.response.edit_message(view=self, embed=embed)
+
+        await ctx.send(embed=embed, view=MyView())
+
 
     
     @commands.command(name="complete", aliases=["remove", "delete"])
